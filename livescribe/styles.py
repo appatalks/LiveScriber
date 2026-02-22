@@ -5,11 +5,11 @@ DARK_THEME = """
 QWidget {
     background-color: #1e1e2e;
     color: #cdd6f4;
-    font-family: "Segoe UI", "SF Pro Text", "Cantarell", sans-serif;
+    font-family: ".AppleSystemUIFont", "Helvetica Neue";
     font-size: 13px;
 }
 
-/* ── Title bar ───────────────────────────────────────────────────────── */
+/* ── Title bar ─────────────────────────────────────────────────────────── */
 #titleBar {
     background-color: #181825;
     border-bottom: 1px solid #313244;
@@ -58,7 +58,7 @@ QWidget {
 #timerLabel {
     color: #a6adc8;
     font-size: 22px;
-    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-family: "Menlo", "Courier New";
     font-weight: 500;
 }
 
@@ -172,7 +172,7 @@ LIGHT_THEME = """
 QWidget {
     background-color: #eff1f5;
     color: #4c4f69;
-    font-family: "Segoe UI", "SF Pro Text", "Cantarell", sans-serif;
+    font-family: ".AppleSystemUIFont", "Helvetica Neue";
     font-size: 13px;
 }
 
@@ -193,7 +193,7 @@ QWidget {
 #recordBtn:hover { background-color: #bcc0cc; border-color: #d20f39; }
 #recordBtn[recording="true"] { background-color: #d20f39; border-color: #d20f39; }
 
-#timerLabel { color: #6c6f85; font-size: 22px; font-family: monospace; font-weight: 500; }
+#timerLabel { color: #6c6f85; font-size: 22px; font-family: "Menlo", "Courier New"; font-weight: 500; }
 #statusLabel { color: #8c8fa1; font-size: 11px; padding: 2px 8px; }
 
 #sectionToggle {

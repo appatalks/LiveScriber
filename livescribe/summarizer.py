@@ -108,32 +108,6 @@ class Summarizer:
         except Exception as exc:
             return f"[Copilot CLI error] {exc}"
 
-    # ── GitHub Models backend ──────────────────────────────────────────────
-
-    def _summarize_github(self, transcript: str) -> str:
-        try:
-            from openai import OpenAI
-
-            client = OpenAI(
-                base_url=self.cfg.github_base_url,
-                api_key=self.cfg.github_token,
-            )
-            response = client.chat.completions.create(
-                model=self.cfg.github_model,
-                messages=[
-                    {"role": "system", "content": self.cfg.system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Here is the meeting transcript:\n\n{transcript}",
-                    },
-                ],
-                temperature=0.3,
-                max_tokens=2048,
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as exc:
-            return f"[GitHub Models error] {exc}"
-
     # ── Ollama / Local server backend ─────────────────────────────────────
 
     def _summarize_ollama(self, transcript: str) -> str:
@@ -212,32 +186,6 @@ class Summarizer:
             return f"[OpenAI error] {exc}"
 
     # ── Utility ────────────────────────────────────────────────────────────
-
-    # ── GitHub Models backend ──────────────────────────────────────────────
-
-    def _summarize_github(self, transcript: str) -> str:
-        try:
-            from openai import OpenAI
-
-            client = OpenAI(
-                base_url=self.cfg.github_base_url,
-                api_key=self.cfg.github_token,
-            )
-            response = client.chat.completions.create(
-                model=self.cfg.github_model,
-                messages=[
-                    {"role": "system", "content": self.cfg.system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Here is the meeting transcript:\n\n{transcript}",
-                    },
-                ],
-                temperature=0.3,
-                max_tokens=2048,
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as exc:
-            return f"[GitHub Models error] {exc}"
 
     @staticmethod
     def check_ollama(url: str = "http://localhost:11434") -> bool:

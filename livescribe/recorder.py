@@ -8,13 +8,11 @@ import shutil
 import subprocess
 import threading
 import wave
-from math import gcd
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 import sounddevice as sd
-from scipy.signal import resample_poly
 
 from livescribe.config import AudioConfig
 
@@ -339,14 +337,13 @@ class Recorder:
     # ── Audio processing ───────────────────────────────────────────────────
 
     def _resample_to_target(self, audio: np.ndarray, source_rate: int) -> np.ndarray:
-        """Resample audio to target rate (16 kHz)."""
+        """Resample audio to target rate (16 kHz) using linear interpolation."""
         target_rate = self.cfg.sample_rate
         if source_rate == target_rate:
             return audio
-        g = gcd(source_rate, target_rate)
-        up = target_rate // g
-        down = source_rate // g
-        return resample_poly(audio, up, down).astype(np.float32)
+        target_length = int(len(audio) * target_rate / source_rate)
+        indices = np.linspace(0, len(audio) - 1, target_length)
+        return np.interp(indices, np.arange(len(audio)), audio).astype(np.float32)
 
     def _process_audio(self) -> np.ndarray:
         """Mix mic + system audio, resample to 16 kHz, normalize."""

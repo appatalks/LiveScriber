@@ -18,14 +18,9 @@ def main():
     )
     parser.add_argument(
         "--backend",
-        choices=["github", "ollama", "openai", "local"],
+        choices=["copilot", "ollama", "openai"],
         default=None,
-        help="Backend for transcription & summarization (default: github)",
-    )
-    parser.add_argument(
-        "--token",
-        default=None,
-        help="GitHub personal access token (or set GITHUB_TOKEN env var)",
+        help="Summarization backend (default: copilot)",
     )
     parser.add_argument(
         "--theme",
@@ -50,21 +45,7 @@ def main():
     if args.model:
         config.transcription.model_size = args.model
     if args.backend:
-        if args.backend == "local":
-            config.transcription.backend = "local"
-            config.summarizer.backend = "ollama"
-        elif args.backend == "github":
-            config.transcription.backend = "github"
-            config.summarizer.backend = "github"
-        elif args.backend == "openai":
-            config.transcription.backend = "github"  # still use Whisper via API
-            config.summarizer.backend = "openai"
-        elif args.backend == "ollama":
-            config.transcription.backend = "local"
-            config.summarizer.backend = "ollama"
-    if args.token:
-        config.transcription.github_token = args.token
-        config.summarizer.github_token = args.token
+        config.summarizer.backend = args.backend
     if args.theme:
         config.ui.theme = args.theme
     if args.no_on_top:
