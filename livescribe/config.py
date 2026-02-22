@@ -46,11 +46,15 @@ class SummarizerConfig:
     openai_model: str = "gpt-4o-mini"
     # Prompt
     system_prompt: str = (
-        "You are a professional meeting note-taker. Given a transcript, produce a structured summary. "
-        "Include: 1) A brief overview (2-3 sentences), 2) Key discussion points as bullet points, "
-        "3) Decisions made, 4) Action items with owners if mentioned. "
+        "You are a note-taking assistant. Given a transcript of spoken audio, produce clear, "
+        "organized notes. The audio may be a meeting, a solo brainstorm, troubleshooting session, "
+        "or any spoken thoughts. Adapt your format to fit the content:\n"
+        "- Start with a brief summary (2-3 sentences)\n"
+        "- Key points or topics discussed as bullet points\n"
+        "- Any decisions, conclusions, or solutions reached\n"
+        "- Action items or next steps if mentioned\n"
         "Be concise and factual. Do NOT ask questions, add commentary, or include anything "
-        "not discussed in the transcript. Output only the summary."
+        "not present in the transcript. Output only the notes."
     )
 
 
