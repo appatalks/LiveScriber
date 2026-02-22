@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "livescribe"
+version = "0.1.0"
+description = "A floating desktop app for real-time meeting transcription and AI summarization"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "LiveScribe"},
+]
+dependencies = [
+    "PyQt6>=6.5",
+    "sounddevice>=0.4",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "faster-whisper>=1.0",
+    "requests>=2.28",
+    "openai>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+]
+
+[project.scripts]
+livescribe = "livescribe.main:main"
+
+[project.gui-scripts]
+livescribe-gui = "livescribe.main:main"
+
+[tool.setuptools.packages.find]
+include = ["livescribe*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
