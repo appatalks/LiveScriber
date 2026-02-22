@@ -1,8 +1,6 @@
 # LiveScribe
 
-A small, floating desktop app for **recording**, **transcribing**, and **summarizing** meetings and audio — like Copilot in Teams, but cross-platform.
-
-Uses your **GitHub Copilot subscription** for high-accuracy Whisper transcription and GPT-4o summarization via [GitHub Models](https://github.com/marketplace/models) — no extra API keys needed.
+A small, floating desktop app that **records**, **transcribes**, and **summarizes** your spoken audio into organized notes — think out loud, troubleshoot problems, capture meetings, or brainstorm ideas and get clean notes automatically.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)
@@ -10,19 +8,36 @@ Uses your **GitHub Copilot subscription** for high-accuracy Whisper transcriptio
 
 ---
 
+## What It Does
+
+Hit record, talk, stop. LiveScribe transcribes your audio locally with Whisper and generates structured notes using AI. Whether you're:
+
+- **Troubleshooting** — talk through a problem, get organized notes of your thought process
+- **Brainstorming** — capture ideas as you speak, get a clean summary
+- **In a meeting** — record both sides of the call, get key points and action items
+- **Taking voice notes** — quick thoughts while coding, walking, or commuting
+
+The AI adapts its note format to match whatever you're recording.
+
+---
+
 ## Features
 
-- **Floating window** — always-on-top, draggable, minimal UI you can invoke quickly
-- **One-click recording** — press the red button to capture audio from your mic
-- **GitHub Models transcription** (default) — cloud Whisper via your Copilot subscription for high accuracy
-- **GitHub Models summarization** (default) — GPT-4o generates structured meeting summaries with key points, decisions, and action items
-- **Local fallback** — optional offline transcription via [faster-whisper](https://github.com/SYSTRAN/faster-whisper) + [Ollama](https://ollama.com) summarization
-- **Multiple backends** — GitHub Models (default), OpenAI direct, or fully local (Ollama + faster-whisper)
-- **Import audio** — drag in existing WAV/MP3/M4A/OGG/FLAC files
-- **Copy all** — one click to copy transcript + summary to clipboard
-- **Save as Markdown** — export notes with transcript, summary, and metadata to `.md` files
+- **Floating window** — always-on-top, resizable, draggable — invoke it quickly alongside your work
+- **One-click recording** — press the red button to capture audio from mic + system audio
+- **Dual audio capture** — records your mic and system output (hear both sides of a call)
+- **Local transcription** — powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) `distil-large-v3` (runs offline, no API key needed)
+- **AI-powered notes** — generates structured summaries via Copilot CLI, Ollama, or OpenAI
+- **Copilot CLI backend** (default) — use Claude, GPT-5, or Gemini through your GitHub Copilot subscription
+- **Editable notes** — click into the Summary section to add your own annotations
+- **Session history** — navigate between past sessions with ◀ ▶ while they're in memory
+- **Chunked transcription** — handles recordings up to 5+ hours by splitting into segments
+- **Import audio** — bring in existing WAV/MP3/M4A/OGG/FLAC files
+- **Save as Markdown** — export transcript + notes to `.md` files
+- **Copy All** — one click to clipboard
+- **Settings dialog** — configure backend, model, prompt, theme, opacity, and more
 - **Dark & light themes** — Catppuccin-inspired color scheme
-- **Configurable** — backend, language, always-on-top, opacity, and more via `~/.livescribe/config.json`
+- **In-memory audio** — recordings stay in RAM, nothing written to disk unless you export
 
 ---
 
@@ -31,10 +46,7 @@ Uses your **GitHub Copilot subscription** for high-accuracy Whisper transcriptio
 ### 1. Install
 
 ```bash
-# Clone the repo
-git clone <your-repo-url> LiveScribe && cd LiveScribe
-
-# Run the install script (creates venv, installs deps)
+git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
 ./scripts/install.sh
 ```
 
@@ -48,11 +60,9 @@ livescribe
 ### CLI Options
 
 ```
-livescribe                          # default (GitHub Models backend)
-livescribe --token ghp_xxxx         # pass GitHub token directly
-livescribe --backend local          # fully offline (faster-whisper + Ollama)
-livescribe --backend ollama         # local transcription + Ollama summaries
-livescribe --backend openai         # Whisper API + OpenAI summaries
+livescribe                          # default (Copilot CLI + local Whisper)
+livescribe --backend ollama         # use local LLM server for notes
+livescribe --backend openai         # use OpenAI directly (needs API key)
 livescribe --theme light            # light theme
 livescribe --no-on-top              # disable always-on-top
 ```
@@ -63,61 +73,55 @@ livescribe --no-on-top              # disable always-on-top
 
 ```
 ┌─────────────────────────────────────┐
-│         LiveScribe Window           │
+│  LiveScribe              ⚙  ─  ✕   │
 │                                     │
 │         ┌──────────────┐            │
 │         │   ● Record   │            │
 │         └──────────────┘            │
 │            00:00                    │
 │  ────────────────────────────────   │
+│       ◀   1/3 • 14:32   ▶          │
+│                                     │
 │  ▶ Transcription                    │
-│    (collapsible live transcript)    │
+│    (collapsible transcript)         │
 │                                     │
 │  ▶ Summary & Notes                  │
-│    (collapsible AI summary)         │
+│    (collapsible, editable notes)    │
 │                                     │
 │  [Transcribe]  [Summarize]          │
-│  [Import Audio]  [Copy All]         │
+│  [Import Audio] [Copy All] [Save MD]│
 │                                     │
-│  Ready                              │
+│  Ready — Copilot summarizer         │
 └─────────────────────────────────────┘
 ```
 
 **Workflow:**
-1. Click the **record** button to capture audio from your microphone
-2. Click **stop** when done — audio saves to `~/.livescribe/recordings/`
-3. Click **Transcribe** — Whisper processes the audio (via GitHub Models or locally)
-4. Click **Summarize** — GPT-4o generates a structured summary
-5. Click **Copy All** to grab everything for your notes
+1. Click **record** — captures your mic + system audio
+2. Click **stop** — audio stays in memory
+3. Click **Transcribe** — Whisper processes the audio locally (chunked for long recordings)
+4. Click **Summarize** — AI generates organized notes
+5. Edit the notes if needed, then **Copy All** or **Save MD**
+
+Use ▶ to start a new session, ◀ to revisit previous ones.
 
 ---
 
-## Backends
+## Summarization Backends
 
-### GitHub Models (default — uses your Copilot subscription)
+### Copilot CLI (default — uses your Copilot subscription)
 
-```bash
-# Set your GitHub personal access token
-export GITHUB_TOKEN="ghp_..."
-livescribe
+Requires [Copilot CLI](https://github.com/github/copilot-cli) installed and authenticated.
 
-# Or pass it directly
-livescribe --token ghp_...
-```
+Available models:
+- `claude-sonnet-4.5` (default), `claude-sonnet-4`, `claude-haiku-4.5`
+- `gpt-5`, `gpt-5.1`, `gpt-5.1-codex`
+- `gemini-3-pro-preview`
 
-Create a token at [github.com/settings/tokens](https://github.com/settings/tokens) with no special scopes — just needs basic access to GitHub Models.
-
-### Ollama (fully local, free)
+### Ollama / LM Studio (local, private)
 
 ```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull a model
-ollama pull llama3
-
-# Run fully offline
-livescribe --backend local
+# Works with any OpenAI-compatible local server
+# Configure URL + model in ⚙ Settings
 ```
 
 ### OpenAI (direct)
@@ -131,24 +135,23 @@ livescribe --backend openai
 
 ## Configuration
 
-Config is stored at `~/.livescribe/config.json` and is created on first run. You can edit it directly or use CLI flags.
+Settings are accessible via the **⚙** button in the title bar, or edit `~/.livescribe/config.json` directly.
 
 ```json
 {
   "audio": {
     "sample_rate": 16000,
-    "channels": 1
+    "channels": 1,
+    "capture_system_audio": true
   },
   "transcription": {
-    "backend": "github",
-    "github_model": "openai/whisper-large-v3-turbo",
-    "github_base_url": "https://models.inference.ai.azure.com",
-    "model_size": "base",
-    "language": null
+    "model_size": "distil-large-v3",
+    "language": null,
+    "chunk_minutes": 10
   },
   "summarizer": {
-    "backend": "github",
-    "github_model": "openai/gpt-4o-mini",
+    "backend": "copilot",
+    "copilot_model": "claude-sonnet-4.5",
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3"
   },
@@ -162,7 +165,7 @@ Config is stored at `~/.livescribe/config.json` and is created on first run. You
 }
 ```
 
-### Whisper Model Sizes (local backend only)
+### Whisper Model Sizes
 
 | Model | Size | RAM | Speed | Accuracy |
 |-------|------|-----|-------|----------|
@@ -182,15 +185,15 @@ LiveScribe/
 ├── livescribe/
 │   ├── __init__.py          # Package version
 │   ├── main.py              # CLI entry point & arg parsing
-│   ├── app.py               # PyQt6 floating window UI
-│   ├── recorder.py          # Audio capture via sounddevice
-│   ├── transcriber.py       # GitHub Models Whisper / local faster-whisper
-│   ├── summarizer.py        # GitHub Models / Ollama / OpenAI summarization
-│   ├── config.py            # Dataclass config with persistence
+│   ├── app.py               # PyQt6 floating window UI + settings dialog
+│   ├── recorder.py          # Mic + system audio capture (sounddevice + parec)
+│   ├── transcriber.py       # Chunked local Whisper transcription
+│   ├── summarizer.py        # Copilot CLI / Ollama / OpenAI summarization
+│   ├── config.py            # Dataclass config with JSON persistence
 │   └── styles.py            # QSS dark/light themes
 ├── scripts/
-│   └── install.sh           # One-command setup
-├── pyproject.toml            # Package metadata & deps
+│   └── install.sh           # One-command Linux/macOS setup
+├── pyproject.toml
 ├── requirements.txt
 └── README.md
 ```
@@ -203,10 +206,9 @@ LiveScribe/
 - **PortAudio** (for microphone access)
   - Linux: `sudo apt install portaudio19-dev`
   - macOS: `brew install portaudio`
-- **GitHub personal access token** (for default GitHub Models backend — free with Copilot)
-- **Ollama** (optional, for fully local operation)
+- **Copilot CLI** (for default summarization backend — free with Copilot subscription)
+- **Ollama or LM Studio** (optional, for fully local/private operation)
 - **OpenAI API key** (optional, for direct OpenAI backend)
-- **faster-whisper** (optional, for local transcription: `pip install faster-whisper`)
 
 ---
 
