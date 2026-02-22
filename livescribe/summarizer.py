@@ -24,8 +24,8 @@ class Summarizer:
         if not transcript.strip():
             return ""
 
-        if self.cfg.backend == "github":
-            return self._summarize_github(transcript)
+        if self.cfg.backend == "copilot":
+            return self._summarize_copilot(transcript)
         elif self.cfg.backend == "openai":
             return self._summarize_openai(transcript)
         else:
@@ -51,6 +51,62 @@ class Summarizer:
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
         return t
+
+    # ── Copilot CLI backend ────────────────────────────────────────────────
+
+    def _summarize_copilot(self, transcript: str) -> str:
+        """Summarize via Copilot CLI (copilot --prompt)."""
+        import shutil
+        import subprocess
+
+        copilot_bin = shutil.which("copilot")
+        if not copilot_bin:
+            return "[Copilot CLI not found] Install it from https://github.com/github/copilot-cli"
+
+        prompt = (
+            f"{self.cfg.system_prompt}\n\n"
+            f"Here is the meeting transcript:\n\n{transcript}"
+        )
+
+        try:
+            result = subprocess.run(
+                [
+                    copilot_bin,
+                    "--model", self.cfg.copilot_model,
+                    "--prompt", prompt,
+                    "--allow-all-tools",
+                    "--no-color",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+
+            if result.returncode != 0:
+                stderr = result.stderr.strip()
+                return f"[Copilot CLI error] {stderr or 'Unknown error'}"
+
+            # Parse output — strip the usage stats footer
+            output = result.stdout.strip()
+            lines = output.split("\n")
+
+            # Find where the stats footer begins (starts with empty line then "Total usage")
+            summary_lines = []
+            for line in lines:
+                if line.strip().startswith("Total usage") or line.strip().startswith("Usage by model"):
+                    break
+                summary_lines.append(line)
+
+            # Remove trailing empty lines
+            while summary_lines and not summary_lines[-1].strip():
+                summary_lines.pop()
+
+            return "\n".join(summary_lines).strip()
+
+        except subprocess.TimeoutExpired:
+            return "[Copilot CLI timeout] The request took too long"
+        except Exception as exc:
+            return f"[Copilot CLI error] {exc}"
 
     # ── GitHub Models backend ──────────────────────────────────────────────
 

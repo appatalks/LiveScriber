@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
-import subprocess
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
@@ -26,7 +24,6 @@ class AudioConfig:
 
 @dataclass
 class TranscriptionConfig:
-    backend: str = "local"            # local | github
     # Local faster-whisper settings
     model_size: str = "distil-large-v3"  # tiny | base | small | medium | large-v3 | distil-large-v3
     device: str = "auto"             # auto | cpu | cuda
@@ -34,19 +31,13 @@ class TranscriptionConfig:
     language: str | None = None      # None = auto-detect
     beam_size: int = 5
     vad_filter: bool = False         # voice-activity-detection filter (can drop quiet audio)
-    # GitHub Models settings (used when backend="github")
-    github_token: str = ""
-    github_model: str = "openai/whisper-large-v3-turbo"  # Whisper on GitHub Models
-    github_base_url: str = "https://models.inference.ai.azure.com"
 
 
 @dataclass
 class SummarizerConfig:
-    backend: str = "github"          # github | ollama | openai
-    # GitHub Models settings (free with Copilot subscription)
-    github_token: str = ""           # same token as transcription
-    github_model: str = "gpt-5-chat"
-    github_base_url: str = "https://models.inference.ai.azure.com"
+    backend: str = "copilot"          # copilot | ollama | openai
+    # Copilot CLI settings (uses copilot --prompt)
+    copilot_model: str = "claude-sonnet-4.5"
     # Ollama settings
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
@@ -98,37 +89,7 @@ class AppConfig:
             except Exception:
                 pass  # fall back to defaults
         # Env-var overrides
-        if key := os.environ.get("GITHUB_TOKEN"):
-            cfg.transcription.github_token = key
-            cfg.summarizer.github_token = key
         if key := os.environ.get("OPENAI_API_KEY"):
             cfg.summarizer.openai_api_key = key
 
-        # Auto-detect token from gh CLI if still empty
-        if not cfg.transcription.github_token:
-            if token := _get_gh_cli_token():
-                cfg.transcription.github_token = token
-                cfg.summarizer.github_token = token
-
         return cfg
-
-
-def _get_gh_cli_token() -> str | None:
-    """Try to retrieve a GitHub token from the gh CLI."""
-    gh = shutil.which("gh")
-    if not gh:
-        return None
-    try:
-        result = subprocess.run(
-            [gh, "auth", "token"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            token = result.stdout.strip()
-            if token:
-                return token
-    except Exception:
-        pass
-    return None

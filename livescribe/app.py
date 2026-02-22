@@ -85,7 +85,7 @@ class RecordButton(QPushButton):
 class CollapsibleSection(QWidget):
     """A toggleable section with a header button and content area."""
 
-    def __init__(self, title: str, object_name: str, parent=None):
+    def __init__(self, title: str, object_name: str, editable: bool = False, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -102,7 +102,7 @@ class CollapsibleSection(QWidget):
         # Content area
         self.content = QTextEdit()
         self.content.setObjectName(object_name)
-        self.content.setReadOnly(True)
+        self.content.setReadOnly(not editable)
         self.content.setMinimumHeight(80)
         self.content.setMaximumHeight(250)
         self.content.setVisible(False)
@@ -165,18 +165,19 @@ class SettingsDialog(QDialog):
         sum_form = QFormLayout(sum_group)
 
         self.sum_backend_combo = QComboBox()
-        self.sum_backend_combo.addItems(["github", "ollama", "openai"])
+        self.sum_backend_combo.addItems(["copilot", "ollama", "openai"])
         self.sum_backend_combo.setCurrentText(config.summarizer.backend)
         self.sum_backend_combo.currentTextChanged.connect(self._on_backend_changed)
         sum_form.addRow("Backend:", self.sum_backend_combo)
 
-        self.sum_model_combo = QComboBox()
-        self.sum_model_combo.setEditable(True)
-        self.sum_model_combo.addItems([
-            "gpt-5-chat", "gpt-5-mini", "gpt-4o-mini", "gpt-4o",
+        self.copilot_model_combo = QComboBox()
+        self.copilot_model_combo.addItems([
+            "claude-sonnet-4.5", "claude-sonnet-4", "claude-haiku-4.5",
+            "gpt-5", "gpt-5.1", "gpt-5.1-codex-mini", "gpt-5.1-codex",
+            "gemini-3-pro-preview",
         ])
-        self.sum_model_combo.setCurrentText(config.summarizer.github_model)
-        sum_form.addRow("GitHub model:", self.sum_model_combo)
+        self.copilot_model_combo.setCurrentText(config.summarizer.copilot_model)
+        sum_form.addRow("Copilot model:", self.copilot_model_combo)
 
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setPlainText(config.summarizer.system_prompt)
@@ -266,7 +267,7 @@ class SettingsDialog(QDialog):
         self.cfg.transcription.language = lang if lang else None
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
-        self.cfg.summarizer.github_model = self.sum_model_combo.currentText()
+        self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
         self.cfg.summarizer.system_prompt = self.prompt_edit.toPlainText().strip()
         self.cfg.summarizer.ollama_url = self.ollama_url_edit.text().strip()
         self.cfg.summarizer.ollama_model = self.ollama_model_combo.currentText().strip()
@@ -351,6 +352,10 @@ class LiveScribeWindow(QWidget):
         self.summarizer = Summarizer(config.summarizer)
 
         self._transcript_text = ""
+
+        # ── Session history (in-memory) ────────────────────────────────
+        self._history: list[dict] = []  # [{"transcript": str, "summary": str, "timestamp": str, "duration": float}]
+        self._history_idx: int = -1     # -1 = current/new session
 
         # ── Window setup ───────────────────────────────────────────────
         flags = Qt.WindowType.FramelessWindowHint
@@ -460,12 +465,38 @@ class LiveScribeWindow(QWidget):
         sep.setFrameShape(QFrame.Shape.HLine)
         cl.addWidget(sep)
 
+        # History navigation
+        hist_row = QHBoxLayout()
+        hist_row.setSpacing(4)
+
+        self.btn_hist_prev = QPushButton("◀")
+        self.btn_hist_prev.setObjectName("secondaryBtn")
+        self.btn_hist_prev.setFixedWidth(32)
+        self.btn_hist_prev.setEnabled(False)
+        self.btn_hist_prev.setToolTip("Previous session")
+        self.btn_hist_prev.clicked.connect(self._hist_prev)
+        hist_row.addWidget(self.btn_hist_prev)
+
+        self.hist_label = QLabel("New session")
+        self.hist_label.setObjectName("statusLabel")
+        self.hist_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hist_row.addWidget(self.hist_label)
+
+        self.btn_hist_next = QPushButton("▶")
+        self.btn_hist_next.setObjectName("secondaryBtn")
+        self.btn_hist_next.setFixedWidth(32)
+        self.btn_hist_next.setToolTip("Next / New session")
+        self.btn_hist_next.clicked.connect(self._hist_next)
+        hist_row.addWidget(self.btn_hist_next)
+
+        cl.addLayout(hist_row)
+
         # Transcript section
         self.transcript_section = CollapsibleSection("Transcription", "transcriptArea")
         cl.addWidget(self.transcript_section)
 
         # Summary section
-        self.summary_section = CollapsibleSection("Summary & Notes", "summaryArea")
+        self.summary_section = CollapsibleSection("Summary & Notes", "summaryArea", editable=True)
         cl.addWidget(self.summary_section)
 
         # Action buttons
@@ -510,8 +541,8 @@ class LiveScribeWindow(QWidget):
         cl.addStretch()
 
         # Status
-        backend_label = self.cfg.transcription.backend.capitalize()
-        self.status_label = QLabel(f"Ready — {backend_label} backend")
+        backend_label = self.cfg.summarizer.backend.capitalize()
+        self.status_label = QLabel(f"Ready — {backend_label} summarizer")
         self.status_label.setObjectName("statusLabel")
         cl.addWidget(self.status_label)
 
@@ -653,6 +684,7 @@ class LiveScribeWindow(QWidget):
 
     def _start_recording(self):
         try:
+            self._hist_new_session()
             self.recorder.start()
             self.record_btn.set_recording(True)
             self._timer.start()
@@ -725,6 +757,7 @@ class LiveScribeWindow(QWidget):
         self.btn_transcribe.setEnabled(True)
         self.btn_summarize.setEnabled(True)
         self.status_label.setText("Transcription complete")
+        self._hist_save_current()
 
     @pyqtSlot(str)
     def _on_transcription_error(self, error: str):
@@ -755,11 +788,112 @@ class LiveScribeWindow(QWidget):
         self.summary_section.set_text(summary)
         self.btn_summarize.setEnabled(True)
         self.status_label.setText("Summary ready")
+        # Auto-save current session to history
+        self._hist_save_current()
 
     @pyqtSlot(str)
     def _on_summary_error(self, error: str):
         self.btn_summarize.setEnabled(True)
         self.status_label.setText(f"Summary error: {error}")
+
+    # ── Session history ────────────────────────────────────────────────────
+
+    def _hist_save_current(self):
+        """Save current transcript + summary as a history entry."""
+        import datetime
+
+        transcript = self._transcript_text
+        summary = self.summary_section.content.toPlainText()
+        if not transcript and not summary:
+            return
+
+        entry = {
+            "transcript": transcript,
+            "summary": summary,
+            "timestamp": datetime.datetime.now().strftime("%H:%M"),
+            "duration": self.recorder.duration_seconds,
+        }
+
+        # If viewing history, update that entry; otherwise append new
+        if self._history_idx >= 0 and self._history_idx < len(self._history):
+            self._history[self._history_idx] = entry
+        else:
+            self._history.append(entry)
+            self._history_idx = len(self._history) - 1
+
+        self._hist_update_nav()
+
+    @pyqtSlot()
+    def _hist_prev(self):
+        if self._history_idx > 0:
+            self._history_idx -= 1
+            self._hist_show(self._history_idx)
+        elif self._history_idx >= len(self._history) and len(self._history) > 0:
+            # On "new session", go to last saved
+            self._history_idx = len(self._history) - 1
+            self._hist_show(self._history_idx)
+
+    @pyqtSlot()
+    def _hist_next(self):
+        if self._history_idx < len(self._history) - 1:
+            # Navigate to next saved session
+            self._history_idx += 1
+            self._hist_show(self._history_idx)
+        else:
+            # At the end (or past it) — create new session
+            self._hist_new_session()
+
+    def _hist_show(self, idx: int):
+        """Display a history entry."""
+        entry = self._history[idx]
+        self._transcript_text = entry["transcript"]
+        self.transcript_section.set_text(entry["transcript"])
+        if entry["transcript"]:
+            self.transcript_section.expand()
+        self.summary_section.set_text(entry["summary"])
+        if entry["summary"]:
+            self.summary_section.expand()
+
+        self.btn_transcribe.setEnabled(False)
+        self.btn_summarize.setEnabled(bool(entry["transcript"]))
+        self._hist_update_nav()
+
+    def _hist_update_nav(self):
+        """Update history nav buttons and label."""
+        total = len(self._history)
+        idx = self._history_idx
+
+        if total == 0 or idx >= total:
+            # New/empty session
+            label = f"New  ({total} saved)" if total > 0 else "New session"
+            self.hist_label.setText(label)
+            self.btn_hist_prev.setEnabled(total > 0)
+            self.btn_hist_next.setEnabled(False)  # already on new
+            self.btn_hist_next.setToolTip("New session")
+            return
+
+        entry = self._history[idx]
+        self.hist_label.setText(f"{idx + 1}/{total}  •  {entry['timestamp']}")
+        self.btn_hist_prev.setEnabled(idx > 0)
+        self.btn_hist_next.setEnabled(True)  # always enabled: next or new
+        if idx == total - 1:
+            self.btn_hist_next.setToolTip("New session")
+        else:
+            self.btn_hist_next.setToolTip("Next session")
+
+    def _hist_new_session(self):
+        """Start a fresh session, preserving history."""
+        # Save current if it has content
+        if self._transcript_text or self.summary_section.content.toPlainText():
+            self._hist_save_current()
+
+        # Reset to new
+        self._transcript_text = ""
+        self.transcript_section.clear()
+        self.summary_section.clear()
+        self._history_idx = len(self._history)  # past the end = "new"
+        self.timer_label.setText("00:00")
+        self._hist_update_nav()
 
     # ── Utility actions ────────────────────────────────────────────────────
 
@@ -859,8 +993,8 @@ class LiveScribeWindow(QWidget):
             self.setWindowFlags(flags)
             self.show()  # re-show after setWindowFlags
 
-            backend_label = self.cfg.transcription.backend.capitalize()
-            self.status_label.setText(f"Settings saved — {backend_label} backend")
+            backend_label = self.cfg.summarizer.backend.capitalize()
+            self.status_label.setText(f"Settings saved — {backend_label} summarizer")
 
 
 def run_app(config: AppConfig | None = None):
