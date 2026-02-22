@@ -210,6 +210,20 @@ LiveScribe/
 - **Ollama or LM Studio** (optional, for fully local/private operation)
 - **OpenAI API key** (optional, for direct OpenAI backend)
 
+### System Audio Capture
+
+LiveScribe can capture both your mic and system audio output (e.g., the other side of a call).
+
+**Linux** — works automatically via PulseAudio/PipeWire monitor sources (`parec`).
+
+**macOS** — requires a virtual audio loopback device:
+
+```bash
+brew install blackhole-2ch
+```
+
+Then open **Audio MIDI Setup** → click **+** → **Create Multi-Output Device** → check both your speakers/headphones and "BlackHole 2ch". Set this as your system output. LiveScribe will automatically detect BlackHole and capture system audio through it.
+
 ---
 
 ## License

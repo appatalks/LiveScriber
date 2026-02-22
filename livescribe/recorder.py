@@ -27,14 +27,15 @@ class Recorder:
         self.on_chunk = on_chunk
 
         self._mic_stream: sd.InputStream | None = None
-        self._parec_proc: subprocess.Popen | None = None
+        self._sys_stream: sd.InputStream | None = None  # macOS virtual audio device
+        self._parec_proc: subprocess.Popen | None = None  # Linux parec subprocess
         self._parec_thread: threading.Thread | None = None
         self._mic_frames: list[np.ndarray] = []
         self._sys_frames: list[np.ndarray] = []
         self._recording = False
         self._lock = threading.Lock()
         self._mic_rate: int = config.sample_rate
-        self._sys_rate: int = 16000  # parec captures at this rate
+        self._sys_rate: int = 16000
         self._processed_audio: np.ndarray | None = None
         self._record_start: datetime.datetime | None = None
 
@@ -105,6 +106,11 @@ class Recorder:
             self._mic_stream.close()
             self._mic_stream = None
 
+        if self._sys_stream:
+            self._sys_stream.stop()
+            self._sys_stream.close()
+            self._sys_stream = None
+
         if self._parec_proc:
             self._parec_proc.terminate()
             try:
@@ -163,12 +169,24 @@ class Recorder:
             if d["max_input_channels"] > 0
         ]
 
-    # ── System audio capture via parec ─────────────────────────────────────
+    # ── System audio capture ──────────────────────────────────────────────
 
     def _start_system_capture(self) -> None:
+        """Capture system audio output. Uses parec on Linux, BlackHole on macOS."""
+        import platform
+
+        if platform.system() == "Darwin":
+            self._start_system_capture_macos()
+        else:
+            self._start_system_capture_linux()
+
+    # ── Linux: parec ───────────────────────────────────────────────────────
+
+    def _start_system_capture_linux(self) -> None:
         """Find a monitor source and capture it via parec subprocess."""
         if not shutil.which("parec"):
             print("[Recorder] parec not found — system audio capture unavailable")
+            print("[Recorder] Install PulseAudio utils: sudo apt install pulseaudio-utils")
             return
 
         monitor = self._find_monitor_source()
@@ -200,6 +218,55 @@ class Recorder:
         except Exception as exc:
             print(f"[Recorder] Failed to start parec: {exc}")
             self._parec_proc = None
+
+    # ── macOS: BlackHole / virtual audio device ────────────────────────────
+
+    def _start_system_capture_macos(self) -> None:
+        """Find BlackHole or similar virtual audio device for system audio capture."""
+        blackhole_idx = self._find_blackhole_device()
+        if blackhole_idx is None:
+            print("[Recorder] No virtual audio device found — mic only")
+            print("[Recorder] Install BlackHole for system audio capture:")
+            print("[Recorder]   brew install blackhole-2ch")
+            print("[Recorder]   Then create a Multi-Output Device in Audio MIDI Setup")
+            return
+
+        try:
+            dev_info = sd.query_devices(blackhole_idx)
+            self._sys_rate = int(dev_info["default_samplerate"])
+
+            self._sys_stream = sd.InputStream(
+                device=blackhole_idx,
+                samplerate=self._sys_rate,
+                channels=1,
+                dtype=self.cfg.dtype,
+                callback=self._sys_callback,
+            )
+            self._sys_stream.start()
+            print(f"[Recorder] Capturing system audio: {dev_info['name']} (device {blackhole_idx})")
+        except Exception as exc:
+            print(f"[Recorder] Failed to open virtual audio device: {exc}")
+            self._sys_stream = None
+
+    def _sys_callback(self, indata: np.ndarray, frames: int, time_info, status):
+        """Callback for macOS system audio stream."""
+        if status:
+            print(f"[Recorder/sys] {status}")
+        with self._lock:
+            self._sys_frames.append(indata.copy())
+
+    @staticmethod
+    def _find_blackhole_device() -> int | None:
+        """Find a BlackHole or virtual audio loopback device index."""
+        devices = sd.query_devices()
+        # Search for common virtual audio device names
+        virtual_names = ["blackhole", "loopback", "soundflower", "virtual"]
+        for i, d in enumerate(devices):
+            if d["max_input_channels"] > 0:
+                name_lower = d["name"].lower()
+                if any(v in name_lower for v in virtual_names):
+                    return i
+        return None
 
     def _parec_reader(self) -> None:
         """Read raw float32 audio from parec stdout in chunks."""

@@ -52,9 +52,20 @@ if [[ "$(uname)" == "Linux" ]]; then
         sudo pacman -S --noconfirm portaudio
     fi
 elif [[ "$(uname)" == "Darwin" ]]; then
+    info "Checking macOS audio dependencies…"
     if ! brew list portaudio &>/dev/null 2>&1; then
         info "Installing portaudio via Homebrew…"
         brew install portaudio
+    fi
+    # BlackHole for system audio capture (optional)
+    if ! brew list blackhole-2ch &>/dev/null 2>&1; then
+        warn "BlackHole not installed — system audio capture won't work"
+        info "To capture system audio (e.g., other people in calls), install BlackHole:"
+        echo -e "    ${CYAN}brew install blackhole-2ch${NC}"
+        echo -e "    Then open ${CYAN}Audio MIDI Setup${NC} and create a Multi-Output Device"
+        echo -e "    combining your speakers + BlackHole 2ch."
+    else
+        ok "BlackHole detected — system audio capture available"
     fi
 fi
 
