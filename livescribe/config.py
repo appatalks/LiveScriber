@@ -31,6 +31,7 @@ class TranscriptionConfig:
     language: str | None = None      # None = auto-detect
     beam_size: int = 5
     vad_filter: bool = False         # voice-activity-detection filter (can drop quiet audio)
+    chunk_minutes: int = 10          # split long recordings into chunks of this size
 
 
 @dataclass

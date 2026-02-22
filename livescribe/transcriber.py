@@ -1,4 +1,4 @@
-"""Speech-to-text via local faster-whisper."""
+"""Speech-to-text via local faster-whisper with chunked processing for long recordings."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from livescribe.config import TranscriptionConfig
 
 
 class Transcriber:
-    """Transcribe audio via local faster-whisper."""
+    """Transcribe audio via local faster-whisper. Splits long audio into chunks."""
 
     def __init__(self, config: TranscriptionConfig):
         self.cfg = config
@@ -39,7 +39,23 @@ class Transcriber:
         on_segment: Callable[[str], None] | None = None,
     ) -> str:
         """Transcribe an audio file. Returns full transcript text."""
-        return self._transcribe_local_file(Path(audio_path), on_segment)
+        self._ensure_local_model()
+
+        segments, info = self._local_model.transcribe(
+            str(audio_path),
+            beam_size=self.cfg.beam_size,
+            language=self.cfg.language,
+            vad_filter=self.cfg.vad_filter,
+        )
+
+        parts: list[str] = []
+        for segment in segments:
+            text = segment.text.strip()
+            if text:
+                parts.append(text)
+                if on_segment:
+                    on_segment(text)
+        return "\n".join(parts)
 
     def transcribe_array(
         self,
@@ -47,8 +63,42 @@ class Transcriber:
         sample_rate: int = 16_000,
         on_segment: Callable[[str], None] | None = None,
     ) -> str:
-        """Transcribe a numpy audio array (float32, mono)."""
-        return self._transcribe_local_array(audio, sample_rate, on_segment)
+        """Transcribe a numpy audio array, chunking if long."""
+        self._ensure_local_model()
+
+        total_seconds = audio.size / sample_rate
+        chunk_seconds = self.cfg.chunk_minutes * 60
+
+        # Short audio — process directly
+        if total_seconds <= chunk_seconds * 1.2:
+            return self._transcribe_chunk(audio, on_segment)
+
+        # Long audio — split into overlapping chunks and process sequentially
+        overlap_seconds = 5  # 5-second overlap to avoid cutting mid-sentence
+        chunk_samples = int(chunk_seconds * sample_rate)
+        overlap_samples = int(overlap_seconds * sample_rate)
+        step = chunk_samples - overlap_samples
+
+        total_chunks = max(1, int(np.ceil((audio.size - overlap_samples) / step)))
+        all_parts: list[str] = []
+
+        if on_segment:
+            on_segment(f"[Chunked: {total_chunks} segments, ~{total_seconds/60:.0f} min total]")
+
+        for i in range(total_chunks):
+            start = i * step
+            end = min(start + chunk_samples, audio.size)
+            chunk = audio[start:end]
+
+            chunk_mins = start / sample_rate / 60
+            if on_segment:
+                on_segment(f"\n--- [{chunk_mins:.0f}:{chunk_mins % 1 * 60:02.0f}] chunk {i + 1}/{total_chunks} ---")
+
+            text = self._transcribe_chunk(chunk, on_segment)
+            if text:
+                all_parts.append(text)
+
+        return "\n".join(all_parts)
 
     def transcribe_file_async(
         self,
@@ -95,37 +145,14 @@ class Transcriber:
         t.start()
         return t
 
-    # ── Local faster-whisper backend ───────────────────────────────────────
+    # ── Internal ───────────────────────────────────────────────────────────
 
-    def _transcribe_local_file(
-        self, audio_path: Path, on_segment: Callable[[str], None] | None = None
-    ) -> str:
-        self._ensure_local_model()
-
-        segments, info = self._local_model.transcribe(
-            str(audio_path),
-            beam_size=self.cfg.beam_size,
-            language=self.cfg.language,
-            vad_filter=self.cfg.vad_filter,
-        )
-
-        parts: list[str] = []
-        for segment in segments:
-            text = segment.text.strip()
-            if text:
-                parts.append(text)
-                if on_segment:
-                    on_segment(text)
-        return "\n".join(parts)
-
-    def _transcribe_local_array(
+    def _transcribe_chunk(
         self,
         audio: np.ndarray,
-        sample_rate: int,
         on_segment: Callable[[str], None] | None = None,
     ) -> str:
-        self._ensure_local_model()
-
+        """Transcribe a single chunk of audio."""
         segments, info = self._local_model.transcribe(
             audio,
             beam_size=self.cfg.beam_size,
