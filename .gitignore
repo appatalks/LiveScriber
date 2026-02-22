@@ -35,3 +35,14 @@ models/
 
 # Config overrides
 livescribe.local.yaml
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+secrets.*
+config.local.json
+
+# User data
+.livescribe/
