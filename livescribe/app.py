@@ -354,8 +354,11 @@ class LiveScribeWindow(QWidget):
         self._transcript_text = ""
 
         # ── Session history (in-memory) ────────────────────────────────
-        self._history: list[dict] = []  # [{"transcript": str, "summary": str, "timestamp": str, "duration": float}]
+        # Each entry: {"audio": np.ndarray, "transcript": str, "summary": str,
+        #              "timestamp": str, "duration": float}
+        self._history: list[dict] = []
         self._history_idx: int = -1     # -1 = current/new session
+        self._playback_thread = None
 
         # ── Window setup ───────────────────────────────────────────────
         flags = Qt.WindowType.FramelessWindowHint
@@ -538,6 +541,24 @@ class LiveScribeWindow(QWidget):
 
         cl.addLayout(btn_row2)
 
+        # Third row: audio actions
+        btn_row3 = QHBoxLayout()
+        btn_row3.setSpacing(8)
+
+        self.btn_play = QPushButton("▶ Play")
+        self.btn_play.setObjectName("secondaryBtn")
+        self.btn_play.setEnabled(False)
+        self.btn_play.clicked.connect(self._play_audio)
+        btn_row3.addWidget(self.btn_play)
+
+        self.btn_save_wav = QPushButton("Save WAV")
+        self.btn_save_wav.setObjectName("secondaryBtn")
+        self.btn_save_wav.setEnabled(False)
+        self.btn_save_wav.clicked.connect(self._save_wav)
+        btn_row3.addWidget(self.btn_save_wav)
+
+        cl.addLayout(btn_row3)
+
         cl.addStretch()
 
         # Status
@@ -693,13 +714,14 @@ class LiveScribeWindow(QWidget):
 
     def _start_recording(self):
         try:
-            self._hist_new_session()
             self.recorder.start()
             self.record_btn.set_recording(True)
             self._timer.start()
             self.status_label.setText("Recording…")
             self.btn_transcribe.setEnabled(False)
             self.btn_summarize.setEnabled(False)
+            self.btn_play.setEnabled(False)
+            self.btn_save_wav.setEnabled(False)
         except Exception as exc:
             self.status_label.setText(f"Mic error: {exc}")
 
@@ -710,8 +732,28 @@ class LiveScribeWindow(QWidget):
             self._timer.stop()
             duration = int(self.recorder.duration_seconds)
             mins, secs = divmod(duration, 60)
-            self.status_label.setText(f"Recorded {mins}:{secs:02d} (in memory)")
+
+            # Auto-save this recording as a new history session
+            import datetime
+            audio = self.recorder.get_audio().copy()
+            entry = {
+                "audio": audio,
+                "transcript": "",
+                "summary": "",
+                "timestamp": datetime.datetime.now().strftime("%H:%M"),
+                "duration": self.recorder.duration_seconds,
+            }
+            self._history.append(entry)
+            self._history_idx = len(self._history) - 1
+            self._transcript_text = ""
+            self.transcript_section.clear()
+            self.summary_section.clear()
+
+            self.status_label.setText(f"Recorded {mins}:{secs:02d} — session {self._history_idx + 1}")
             self.btn_transcribe.setEnabled(True)
+            self.btn_play.setEnabled(True)
+            self.btn_save_wav.setEnabled(True)
+            self._hist_update_nav()
         except Exception as exc:
             self.status_label.setText(f"Stop error: {exc}")
 
@@ -725,7 +767,9 @@ class LiveScribeWindow(QWidget):
 
     @pyqtSlot()
     def _start_transcription(self):
-        if not self.recorder.has_audio:
+        # Get audio from current history entry
+        audio = self._get_current_audio()
+        if audio is None or audio.size == 0:
             self.status_label.setText("No recording to transcribe")
             return
 
@@ -734,7 +778,6 @@ class LiveScribeWindow(QWidget):
         self.transcript_section.expand()
         self.status_label.setText("Transcribing… (this may take a moment)")
 
-        audio = self.recorder.get_audio()
         self.transcriber.transcribe_array_async(
             audio,
             sample_rate=self.recorder.cfg.sample_rate,
@@ -807,49 +850,46 @@ class LiveScribeWindow(QWidget):
 
     # ── Session history ────────────────────────────────────────────────────
 
+    def _get_current_audio(self):
+        """Get audio from the current history entry, or from the recorder."""
+        import numpy as np
+        if 0 <= self._history_idx < len(self._history):
+            audio = self._history[self._history_idx].get("audio")
+            if audio is not None and audio.size > 0:
+                return audio
+        # Fall back to recorder's current audio
+        return self.recorder.get_audio()
+
     def _hist_save_current(self):
-        """Save current transcript + summary as a history entry."""
-        import datetime
+        """Update current history entry with transcript + summary."""
+        if self._history_idx < 0 or self._history_idx >= len(self._history):
+            return
 
         transcript = self._transcript_text
         summary = self.summary_section.content.toPlainText()
-        if not transcript and not summary:
-            return
 
-        entry = {
-            "transcript": transcript,
-            "summary": summary,
-            "timestamp": datetime.datetime.now().strftime("%H:%M"),
-            "duration": self.recorder.duration_seconds,
-        }
-
-        # If viewing history, update that entry; otherwise append new
-        if self._history_idx >= 0 and self._history_idx < len(self._history):
-            self._history[self._history_idx] = entry
-        else:
-            self._history.append(entry)
-            self._history_idx = len(self._history) - 1
-
-        self._hist_update_nav()
+        entry = self._history[self._history_idx]
+        entry["transcript"] = transcript
+        entry["summary"] = summary
 
     @pyqtSlot()
     def _hist_prev(self):
+        # Save edits before navigating
+        self._hist_save_current()
         if self._history_idx > 0:
             self._history_idx -= 1
             self._hist_show(self._history_idx)
         elif self._history_idx >= len(self._history) and len(self._history) > 0:
-            # On "new session", go to last saved
             self._history_idx = len(self._history) - 1
             self._hist_show(self._history_idx)
 
     @pyqtSlot()
     def _hist_next(self):
+        self._hist_save_current()
         if self._history_idx < len(self._history) - 1:
-            # Navigate to next saved session
             self._history_idx += 1
             self._hist_show(self._history_idx)
         else:
-            # At the end (or past it) — create new session
             self._hist_new_session()
 
     def _hist_show(self, idx: int):
@@ -863,8 +903,16 @@ class LiveScribeWindow(QWidget):
         if entry["summary"]:
             self.summary_section.expand()
 
-        self.btn_transcribe.setEnabled(False)
-        self.btn_summarize.setEnabled(bool(entry["transcript"]))
+        has_audio = entry.get("audio") is not None and entry["audio"].size > 0
+        has_transcript = bool(entry["transcript"])
+        self.btn_transcribe.setEnabled(has_audio)
+        self.btn_summarize.setEnabled(has_transcript)
+        self.btn_play.setEnabled(has_audio)
+        self.btn_save_wav.setEnabled(has_audio)
+
+        duration = int(entry.get("duration", 0))
+        mins, secs = divmod(duration, 60)
+        self.timer_label.setText(f"{mins:02d}:{secs:02d}")
         self._hist_update_nav()
 
     def _hist_update_nav(self):
@@ -873,36 +921,113 @@ class LiveScribeWindow(QWidget):
         idx = self._history_idx
 
         if total == 0 or idx >= total:
-            # New/empty session
             label = f"New  ({total} saved)" if total > 0 else "New session"
             self.hist_label.setText(label)
             self.btn_hist_prev.setEnabled(total > 0)
-            self.btn_hist_next.setEnabled(False)  # already on new
+            self.btn_hist_next.setEnabled(False)
             self.btn_hist_next.setToolTip("New session")
             return
 
         entry = self._history[idx]
-        self.hist_label.setText(f"{idx + 1}/{total}  •  {entry['timestamp']}")
+        has_transcript = "✓" if entry.get("transcript") else "●"
+        self.hist_label.setText(f"{idx + 1}/{total} {has_transcript}  {entry['timestamp']}")
         self.btn_hist_prev.setEnabled(idx > 0)
-        self.btn_hist_next.setEnabled(True)  # always enabled: next or new
+        self.btn_hist_next.setEnabled(True)
         if idx == total - 1:
             self.btn_hist_next.setToolTip("New session")
         else:
             self.btn_hist_next.setToolTip("Next session")
 
     def _hist_new_session(self):
-        """Start a fresh session, preserving history."""
-        # Save current if it has content
-        if self._transcript_text or self.summary_section.content.toPlainText():
-            self._hist_save_current()
-
-        # Reset to new
+        """Go to a fresh workspace (doesn't create a history entry until recording)."""
+        self._hist_save_current()
         self._transcript_text = ""
         self.transcript_section.clear()
         self.summary_section.clear()
-        self._history_idx = len(self._history)  # past the end = "new"
+        self._history_idx = len(self._history)
         self.timer_label.setText("00:00")
+        self.btn_transcribe.setEnabled(False)
+        self.btn_summarize.setEnabled(False)
+        self.btn_play.setEnabled(False)
+        self.btn_save_wav.setEnabled(False)
         self._hist_update_nav()
+
+    # ── Audio playback & export ────────────────────────────────────────────
+
+    @pyqtSlot()
+    def _play_audio(self):
+        """Play back audio from the current session."""
+        import sounddevice as sd
+        audio = self._get_current_audio()
+        if audio is None or audio.size == 0:
+            self.status_label.setText("No audio to play")
+            return
+
+        # Stop any existing playback
+        sd.stop()
+        self.status_label.setText("Playing…")
+        self.btn_play.setText("■ Stop")
+        self.btn_play.clicked.disconnect()
+        self.btn_play.clicked.connect(self._stop_playback)
+
+        import threading
+        def _play():
+            sd.play(audio, samplerate=self.recorder.cfg.sample_rate)
+            sd.wait()
+            # Reset button on main thread
+            from PyQt6.QtCore import QMetaObject, Qt as QtNS
+            QMetaObject.invokeMethod(
+                self, "_on_playback_done", QtNS.ConnectionType.QueuedConnection
+            )
+
+        self._playback_thread = threading.Thread(target=_play, daemon=True)
+        self._playback_thread.start()
+
+    @pyqtSlot()
+    def _stop_playback(self):
+        import sounddevice as sd
+        sd.stop()
+        self._on_playback_done()
+
+    @pyqtSlot()
+    def _on_playback_done(self):
+        self.btn_play.setText("▶ Play")
+        self.btn_play.clicked.disconnect()
+        self.btn_play.clicked.connect(self._play_audio)
+        self.status_label.setText("Ready")
+
+    @pyqtSlot()
+    def _save_wav(self):
+        """Save audio from current session to a WAV file."""
+        import io, wave, datetime
+        import numpy as np
+
+        audio = self._get_current_audio()
+        if audio is None or audio.size == 0:
+            self.status_label.setText("No audio to save")
+            return
+
+        from livescribe.config import APP_DIR
+        recordings_dir = APP_DIR / "recordings"
+        recordings_dir.mkdir(parents=True, exist_ok=True)
+
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"livescribe_{ts}.wav"
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Audio",
+            str(recordings_dir / default_name),
+            "WAV Files (*.wav);;All Files (*)",
+        )
+        if path:
+            audio_int16 = np.clip(audio * 32767, -32768, 32767).astype(np.int16)
+            with wave.open(path, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(self.recorder.cfg.sample_rate)
+                wf.writeframes(audio_int16.tobytes())
+            self.status_label.setText(f"Saved: {Path(path).name}")
 
     # ── Utility actions ────────────────────────────────────────────────────
 
