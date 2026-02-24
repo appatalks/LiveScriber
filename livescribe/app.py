@@ -677,9 +677,18 @@ class LiveScribeWindow(QWidget):
 
     @pyqtSlot()
     def _toggle_recording(self):
+        # Debounce — ignore rapid clicks (< 500ms apart)
+        import time
+        now = time.monotonic()
+        if hasattr(self, "_last_toggle_time") and now - self._last_toggle_time < 0.5:
+            return
+        self._last_toggle_time = now
+
         if self.recorder.is_recording:
             self._stop_recording()
         else:
+            # Don't auto-start a new recording right after stopping
+            # (user must have audio or be on a fresh session)
             self._start_recording()
 
     def _start_recording(self):
