@@ -1,0 +1,81 @@
+name: Windows Installer
+
+on:
+  push:
+    branches: [main, windows]
+    paths:
+      - 'livescribe/**'
+      - 'scripts/build_windows_installer.ps1'
+      - 'scripts/windows_launcher.py'
+      - 'scripts/windows_transcriber_helper.py'
+      - 'installer/**'
+      - 'assets/**'
+      - 'pyproject.toml'
+      - '.github/workflows/windows-installer.yml'
+  workflow_dispatch:  # allow manual trigger
+
+jobs:
+  build:
+    runs-on: windows-latest
+    name: Build Windows Installer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Create virtual environment
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          .\.venv\Scripts\python.exe -m pip install --upgrade pip
+          .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+          .\.venv\Scripts\python.exe -m pip install --prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu llama-cpp-python
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y --no-progress
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build installer
+        run: |
+          .\.venv\Scripts\Activate.ps1
+          .\scripts\build_windows_installer.ps1
+
+      - name: Verify build outputs
+        run: |
+          if (-not (Test-Path "dist\LiveScribe\LiveScribe.exe")) {
+            Write-Error "LiveScribe.exe not found"
+            exit 1
+          }
+          if (-not (Test-Path "dist\LiveScribe\LiveScribeTranscriber.exe")) {
+            Write-Error "LiveScribeTranscriber.exe not found"
+            exit 1
+          }
+          $installer = Get-ChildItem "dist\installer\LiveScribe-Setup-*.exe" -ErrorAction SilentlyContinue
+          if (-not $installer) {
+            Write-Error "Installer .exe not found"
+            exit 1
+          }
+          Write-Host "Build outputs verified:"
+          Write-Host "  LiveScribe.exe: $((Get-Item 'dist\LiveScribe\LiveScribe.exe').Length / 1MB) MB"
+          Write-Host "  LiveScribeTranscriber.exe: $((Get-Item 'dist\LiveScribe\LiveScribeTranscriber.exe').Length / 1MB) MB"
+          Write-Host "  Installer: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
+
+      - name: Upload app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveScribe-Bundle
+          path: dist/LiveScribe/
+          retention-days: 14
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveScribe-Installer
+          path: dist/installer/LiveScribe-Setup-*.exe
+          retention-days: 14
