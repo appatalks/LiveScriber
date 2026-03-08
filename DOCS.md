@@ -1,6 +1,57 @@
 # LiveScribe — Technical Documentation
 
-This document covers detailed configuration, backend options, project structure, and system requirements for developers and advanced users. For getting started quickly, see the main [README](README.md).
+This document covers installation from source, detailed configuration, backend options, project structure, and system requirements. For a quick overview, see the main [README](README.md).
+
+---
+
+## Install from Source
+
+### Windows
+
+```powershell
+git clone https://github.com/appatalks/LiveScribe
+cd LiveScribe
+.\scripts\install.ps1
+```
+
+Then run:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+livescribe
+```
+
+### macOS
+
+```bash
+git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
+./scripts/install.sh
+```
+
+Then run:
+
+```bash
+source .venv/bin/activate
+livescribe
+```
+
+> **Tip:** To capture both sides of a call on macOS, install [BlackHole](https://existential.audio/blackhole/) (`brew install blackhole-2ch`) and set up a Multi-Output Device in Audio MIDI Setup.
+
+### Linux
+
+```bash
+git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
+./scripts/install.sh
+```
+
+Then run:
+
+```bash
+source .venv/bin/activate
+livescribe
+```
+
+System audio capture works automatically on Linux via PulseAudio/PipeWire.
 
 ---
 

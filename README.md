@@ -4,128 +4,91 @@
   <img src="assets/livescribe-banner.png" alt="LiveScribe — Record · Transcribe · Summarize" width="100%">
 </p>
 
-A floating desktop app that turns your voice into organized notes. Hit record, talk, and get clean notes automatically — no typing required.
+<p align="center">
+  <b>Talk. Get notes.</b><br>
+  A floating desktop app that records your voice and turns it into clean, organized notes — automatically.
+</p>
 
-![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
-![License](https://img.shields.io/badge/license-MIT-green)
-
----
-
-## How It Works
-
-1. **Record** — click the mic button to start capturing audio
-2. **Stop** — click again to stop
-3. **Transcribe** — converts your speech to text (runs locally, no internet needed)
-4. **Summarize** — AI organizes your words into clean, structured notes
-5. **Export** — copy to clipboard or save as a Markdown file
-
-Works great for meetings, brainstorming, voice notes, troubleshooting sessions, or any time you'd rather talk than type.
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platform">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+</p>
 
 ---
 
-## Install
+## 🚀 Get Started
 
-### Windows
+Download the latest version from [**Releases**](https://github.com/appatalks/LiveScribe/releases) and run the installer.
 
-Download the installer from the [latest release](https://github.com/appatalks/LiveScribe/releases), run it, and you're done.
-
-Or install from source:
-
-```powershell
-git clone https://github.com/appatalks/LiveScribe
-cd LiveScribe
-.\scripts\install.ps1
-```
-
-Then run:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-livescribe
-```
-
-### macOS
-
-```bash
-git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
-./scripts/install.sh
-```
-
-Then run:
-
-```bash
-source .venv/bin/activate
-livescribe
-```
-
-> **Tip:** To capture both sides of a call on macOS, install [BlackHole](https://existential.audio/blackhole/) (`brew install blackhole-2ch`) and set up a Multi-Output Device in Audio MIDI Setup.
-
-### Linux
-
-```bash
-git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
-./scripts/install.sh
-```
-
-Then run:
-
-```bash
-source .venv/bin/activate
-livescribe
-```
-
-System audio capture works automatically on Linux via PulseAudio/PipeWire.
+> Building from source? See the [Installation Guide](DOCS.md#install-from-source).
 
 ---
 
-## Features
+## 💡 How It Works
 
-- **Always-on-top floating window** — stays visible alongside your other apps
-- **Records mic + system audio** — captures both sides of calls
-- **Offline transcription** — powered by Whisper, runs locally on your machine
-- **AI-powered notes** — generates summaries using a built-in local model (no account needed)
-- **Multiple AI backends** — also supports Copilot CLI, Ollama, LM Studio, and OpenAI
-- **Session history** — flip between past recordings with ◀ ▶
-- **Import audio files** — drag in WAV, MP3, M4A, or other formats
-- **Dark & light themes** — switch in Settings
-- **Everything configurable** — model size, backend, prompt, opacity, and more via ⚙ Settings
+| Step | What happens |
+|------|-------------|
+| 🎙️ **Record** | Click the mic button — captures your voice and system audio |
+| ⏹️ **Stop** | Click again to stop recording |
+| 📝 **Transcribe** | Speech is converted to text locally (no internet needed) |
+| ✨ **Summarize** | AI generates clean, structured notes from your transcript |
+| 📋 **Export** | Copy to clipboard or save as Markdown |
 
 ---
 
-## Settings
+## 🎯 Features
 
-Click the **⚙** gear icon in the title bar to configure:
-
-- **Whisper model** — choose transcription accuracy vs. speed
-- **Summarization backend** — local (default), Copilot CLI, Ollama-like server, or OpenAI
-- **System audio** — toggle capturing speaker output
-- **Theme** — dark or light
-- **Opacity** — make the window semi-transparent
-- **Always on top** — keep window above other apps
-
-All settings are saved automatically between sessions.
-
----
-
-## Technical Documentation
-
-For advanced configuration, backend details, CLI options, build instructions, and project structure, see [DOCS.md](DOCS.md).
+| | |
+|---|---|
+| 🪟 **Floating window** | Always-on-top — stays visible while you work |
+| 🎤 **Mic + system audio** | Captures both sides of calls |
+| 🔒 **Fully offline** | Transcription runs locally on your machine |
+| 🤖 **Built-in AI notes** | Summarizes using a local model — no account or API key needed |
+| 🔄 **Session history** | Flip between past recordings with ◀ ▶ |
+| 📂 **Import audio** | Bring in WAV, MP3, M4A, and more |
+| 🎨 **Dark & light themes** | Switch in Settings |
+| ⚙️ **Fully configurable** | Model, backend, prompt, opacity — all adjustable |
 
 ---
 
-## Support
+## ⚙️ Settings
+
+Click the **⚙** gear icon in the title bar to adjust:
+
+- 🧠 Transcription model (accuracy vs. speed)
+- 🤖 Summarization backend (local, Copilot, Ollama, OpenAI)
+- 🔊 System audio capture
+- 🎨 Theme and opacity
+
+Settings are saved automatically.
+
+---
+
+## 📖 Documentation
+
+For installation from source, advanced configuration, CLI options, and developer info:
+
+➡️ [**DOCS.md**](DOCS.md)
+
+---
+
+## 💚 Support
 
 LiveScribe is free and open source. If it's useful to you, consider supporting development:
 
-| Method | |
-|--------|---|
-| **PayPal** | [Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=3KPNXNL6QTZW2) |
+<p align="center">
+  <a href="https://www.paypal.com/donate/?hosted_button_id=3KPNXNL6QTZW2">
+    <img src="https://img.shields.io/badge/Donate-PayPal-blue?logo=paypal" alt="Donate via PayPal">
+  </a>
+</p>
+
+| | |
+|---|---|
 | **Bitcoin** | `16CowvxvLSR4BPEP9KJZiR622UU7hGEce5` |
 | **Ethereum** | `0xf75278bd6e2006e6ef4847c9a9293e509ab815c5` |
 
 ---
 
-## License
-
-MIT
+<p align="center">
+  <sub>MIT License · Made with 🎙️ by <a href="https://github.com/appatalks">appatalks</a></sub>
+</p>
