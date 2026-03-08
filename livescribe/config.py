@@ -10,6 +10,7 @@ from pathlib import Path
 # ── Paths ──────────────────────────────────────────────────────────────────────
 APP_DIR = Path.home() / ".livescribe"
 RECORDINGS_DIR = APP_DIR / "recordings"
+MODELS_DIR = APP_DIR / "models"
 CONFIG_PATH = APP_DIR / "config.json"
 
 
@@ -32,16 +33,23 @@ class TranscriptionConfig:
     beam_size: int = 5
     vad_filter: bool = False         # voice-activity-detection filter (can drop quiet audio)
     chunk_minutes: int = 10          # split long recordings into chunks of this size
+    live_transcription: bool = False  # transcribe while recording (streams rough draft)
 
 
 @dataclass
 class SummarizerConfig:
-    backend: str = "copilot"          # copilot | ollama | openai
+    backend: str = "local"            # copilot | local | ollama-like | openai
     # Copilot CLI settings (uses copilot --prompt)
     copilot_model: str = "claude-sonnet-4.5"
     # Ollama settings
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
+    # Embedded local llama.cpp settings
+    local_model_key: str = "mistral-nemo-12b-instruct"
+    local_context_window: int = 8192
+    local_max_tokens: int = 768
+    local_temperature: float = 0.2
+    local_gpu_layers: int = 0
     # OpenAI settings (direct, not via GitHub)
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
@@ -61,11 +69,17 @@ class SummarizerConfig:
 
 @dataclass
 class UIConfig:
-    window_width: int = 420
-    window_height: int = 620
+    window_width: int = 340
+    window_height: int = 720
     opacity: float = 0.95
     always_on_top: bool = True
     theme: str = "dark"              # dark | light
+
+
+@dataclass
+class LicenseConfig:
+    license_key: str = ""
+    registered: bool = False
 
 
 @dataclass
@@ -74,6 +88,7 @@ class AppConfig:
     transcription: TranscriptionConfig = field(default_factory=TranscriptionConfig)
     summarizer: SummarizerConfig = field(default_factory=SummarizerConfig)
     ui: UIConfig = field(default_factory=UIConfig)
+    license: LicenseConfig = field(default_factory=LicenseConfig)
 
     # ── Persistence ────────────────────────────────────────────────────────
 
@@ -87,10 +102,25 @@ class AppConfig:
         if CONFIG_PATH.exists():
             try:
                 data = json.loads(CONFIG_PATH.read_text())
+                summarizer_data = data.get("summarizer", {})
+                if summarizer_data.get("backend") == "ollama":
+                    summarizer_data["backend"] = "ollama-like"
+                if summarizer_data.get("local_model_key") == "gemma-3-4b-it":
+                    summarizer_data["local_model_key"] = "llama-3.1-4b-instruct"
+                if summarizer_data.get("local_model_key") == "llama-3.2-3b-instruct":
+                    summarizer_data["local_model_key"] = "gemma-2-9b-it"
+                if summarizer_data.get("local_model_key") == "mistral-7b-instruct-v0.3":
+                    summarizer_data["local_model_key"] = "mistral-nemo-12b-instruct"
+                if summarizer_data.get("local_context_window") in (None, 4096):
+                    summarizer_data["local_context_window"] = 8192
+
                 cfg.audio = AudioConfig(**data.get("audio", {}))
                 cfg.transcription = TranscriptionConfig(**data.get("transcription", {}))
-                cfg.summarizer = SummarizerConfig(**data.get("summarizer", {}))
+                cfg.summarizer = SummarizerConfig(**summarizer_data)
                 cfg.ui = UIConfig(**data.get("ui", {}))
+                if cfg.ui.theme not in {"dark", "light"}:
+                    cfg.ui.theme = "dark"
+                cfg.license = LicenseConfig(**data.get("license", {}))
             except Exception:
                 pass  # fall back to defaults
         # Env-var overrides

@@ -18,9 +18,9 @@ def main():
     )
     parser.add_argument(
         "--backend",
-        choices=["copilot", "ollama", "openai"],
+        choices=["copilot", "local", "ollama-like", "ollama", "openai"],
         default=None,
-        help="Summarization backend (default: copilot)",
+        help="Summarization backend (default: local)",
     )
     parser.add_argument(
         "--theme",
@@ -45,7 +45,7 @@ def main():
     if args.model:
         config.transcription.model_size = args.model
     if args.backend:
-        config.summarizer.backend = args.backend
+        config.summarizer.backend = "ollama-like" if args.backend == "ollama" else args.backend
     if args.theme:
         config.ui.theme = args.theme
     if args.no_on_top:

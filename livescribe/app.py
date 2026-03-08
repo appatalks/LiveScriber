@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -15,7 +16,7 @@ from PyQt6.QtCore import (
     pyqtSlot,
     QSize,
 )
-from PyQt6.QtGui import QIcon, QPainter, QColor, QFont
+from PyQt6.QtGui import QIcon, QPainter, QColor, QFont, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -36,6 +37,9 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QLineEdit,
     QGroupBox,
+    QSpinBox,
+    QTabWidget,
+    QScrollArea,
 )
 
 from livescribe.config import AppConfig
@@ -45,13 +49,45 @@ from livescribe.summarizer import Summarizer
 from livescribe.styles import get_theme
 
 
+def _resolve_assets_dir() -> Path | None:
+    """Return the bundled assets directory when available."""
+    candidates: list[Path] = []
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "assets")
+
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.append(exe_dir / "assets")
+        candidates.append(exe_dir / "_internal" / "assets")
+
+    candidates.append(Path(__file__).resolve().parent.parent / "assets")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def _resolve_app_icon_path() -> Path | None:
+    """Return the bundled app icon path when available."""
+    assets_dir = _resolve_assets_dir()
+    if not assets_dir:
+        return None
+
+    candidate = assets_dir / "livescribe.ico"
+    return candidate if candidate.exists() else None
+
+
 class RecordButton(QPushButton):
-    """Circular record button with animated inner dot."""
+    """Circular record button with mic icon matching the LiveScribe banner."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("recordBtn")
-        self.setFixedSize(64, 64)
+        self.setFixedSize(72, 72)
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._recording = False
@@ -68,16 +104,38 @@ class RecordButton(QPushButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        w = self.width()
+        h = self.height()
+        cx, cy = w // 2, h // 2
+
         if self._recording:
-            # Draw a white square (stop icon)
+            # Stop square
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor("#1e1e2e"))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(22, 22, 20, 20, 3, 3)
+            painter.drawRoundedRect(cx - 10, cy - 10, 20, 20, 3, 3)
         else:
-            # Draw a red circle (record icon)
-            painter.setBrush(QColor("#f38ba8"))
+            from PyQt6.QtGui import QPen
+            from PyQt6.QtCore import QRectF
+
+            # Mic body (capsule shape)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(18, 18, 28, 28)
+            painter.setBrush(QColor("#f38ba8"))
+            painter.drawRoundedRect(cx - 5, cy - 12, 10, 17, 5, 5)
+
+            # Mic arc
+            pen = QPen(QColor("#f38ba8"))
+            pen.setWidth(2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            arc_rect = QRectF(cx - 9, cy - 6, 18, 20)
+            painter.drawArc(arc_rect, -10 * 16, -160 * 16)
+
+            # Mic stand line
+            painter.drawLine(cx, cy + 14, cx, cy + 18)
+
+            # Mic base
+            painter.drawLine(cx - 5, cy + 18, cx + 5, cy + 18)
 
         painter.end()
 
@@ -134,14 +192,42 @@ class CollapsibleSection(QWidget):
 class SettingsDialog(QDialog):
     """Settings dialog with key user-facing options."""
 
+    _sig_local_model_downloaded = pyqtSignal(str)
+    _sig_local_model_download_failed = pyqtSignal(str)
+
+    _sig_update_result = pyqtSignal(str)
+
     def __init__(self, config: AppConfig, parent=None):
         super().__init__(parent)
         self.cfg = config
         self.setWindowTitle("LiveScribe Settings")
-        self.setMinimumWidth(380)
+        self.setMinimumWidth(440)
+        self.setMinimumHeight(860)
+        self._downloading_local_model = False
 
-        layout = QVBoxLayout(self)
+        icon_path = _resolve_app_icon_path()
+        if icon_path:
+            self.setWindowIcon(QIcon(str(icon_path)))
+
+        self._sig_local_model_downloaded.connect(self._on_local_model_downloaded)
+        self._sig_local_model_download_failed.connect(self._on_local_model_download_failed)
+        self._sig_update_result.connect(self._on_update_result)
+
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setSpacing(8)
+
+        self._tabs = QTabWidget()
+        outer_layout.addWidget(self._tabs)
+
+        # ── Settings tab ──────────────────────────────────────────────
+        settings_scroll = QScrollArea()
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        settings_widget = QWidget()
+        layout = QVBoxLayout(settings_widget)
         layout.setSpacing(12)
+        settings_scroll.setWidget(settings_widget)
+        self._tabs.addTab(settings_scroll, "Settings")
 
         # ── Transcription settings ─────────────────────────────────────
         tx_group = QGroupBox("Transcription")
@@ -158,6 +244,14 @@ class SettingsDialog(QDialog):
         self.lang_edit.setPlaceholderText("auto-detect (leave empty)")
         tx_form.addRow("Language:", self.lang_edit)
 
+        self.live_transcription_check = QCheckBox("Live transcription while recording (experimental)")
+        self.live_transcription_check.setChecked(config.transcription.live_transcription)
+        self.live_transcription_check.setToolTip(
+            "Stream a rough transcription while recording. Results may be incomplete — "
+            "use the Transcribe button after stopping for a full-accuracy pass."
+        )
+        tx_form.addRow(self.live_transcription_check)
+
         layout.addWidget(tx_group)
 
         # ── Summarization settings ─────────────────────────────────────
@@ -165,19 +259,10 @@ class SettingsDialog(QDialog):
         sum_form = QFormLayout(sum_group)
 
         self.sum_backend_combo = QComboBox()
-        self.sum_backend_combo.addItems(["copilot", "ollama", "openai"])
-        self.sum_backend_combo.setCurrentText(config.summarizer.backend)
+        self.sum_backend_combo.addItems(["copilot", "local", "ollama-like", "openai"])
+        self.sum_backend_combo.setCurrentText(Summarizer.normalize_backend_name(config.summarizer.backend))
         self.sum_backend_combo.currentTextChanged.connect(self._on_backend_changed)
         sum_form.addRow("Backend:", self.sum_backend_combo)
-
-        self.copilot_model_combo = QComboBox()
-        self.copilot_model_combo.addItems([
-            "claude-sonnet-4.5", "claude-sonnet-4", "claude-haiku-4.5",
-            "gpt-5", "gpt-5.1", "gpt-5.1-codex-mini", "gpt-5.1-codex",
-            "gemini-3-pro-preview",
-        ])
-        self.copilot_model_combo.setCurrentText(config.summarizer.copilot_model)
-        sum_form.addRow("Copilot model:", self.copilot_model_combo)
 
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setPlainText(config.summarizer.system_prompt)
@@ -186,9 +271,67 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(sum_group)
 
-        # ── Local server (Ollama / LM Studio) ────────────────────────
-        local_group = QGroupBox("Local Server (Ollama / LM Studio)")
-        local_form = QFormLayout(local_group)
+        self.copilot_group = QGroupBox("Copilot")
+        copilot_form = QFormLayout(self.copilot_group)
+
+        self.copilot_model_combo = QComboBox()
+        self.copilot_model_combo.addItems([
+            "claude-sonnet-4.5", "claude-sonnet-4", "claude-haiku-4.5",
+            "gpt-5", "gpt-5.1", "gpt-5.1-codex-mini", "gpt-5.1-codex",
+            "gemini-3-pro-preview",
+        ])
+        self.copilot_model_combo.setCurrentText(config.summarizer.copilot_model)
+        copilot_form.addRow("Model:", self.copilot_model_combo)
+
+        copilot_auth_row = QHBoxLayout()
+        self.copilot_auth_label = QLabel("Launch Copilot CLI login from here if needed.")
+        self.copilot_auth_label.setWordWrap(True)
+        copilot_auth_row.addWidget(self.copilot_auth_label, stretch=1)
+
+        self.copilot_login_btn = QPushButton("Login")
+        self.copilot_login_btn.setFixedWidth(70)
+        self.copilot_login_btn.clicked.connect(self._launch_copilot_login)
+        copilot_auth_row.addWidget(self.copilot_login_btn)
+        copilot_form.addRow("Auth:", copilot_auth_row)
+
+        layout.addWidget(self.copilot_group)
+
+        # ── Embedded local model ─────────────────────────────────────
+        self.embedded_group = QGroupBox("Embedded Local Summarizer")
+        embedded_form = QFormLayout(self.embedded_group)
+
+        self.local_model_combo = QComboBox()
+        self._local_model_options = Summarizer.get_local_model_options()
+        for key, label in self._local_model_options.items():
+            self.local_model_combo.addItem(label, key)
+        local_index = self.local_model_combo.findData(config.summarizer.local_model_key)
+        if local_index >= 0:
+            self.local_model_combo.setCurrentIndex(local_index)
+        self.local_model_combo.currentIndexChanged.connect(self._refresh_local_model_status)
+        embedded_form.addRow("Model:", self.local_model_combo)
+
+        self.local_context_spin = QSpinBox()
+        self.local_context_spin.setRange(2048, 32768)
+        self.local_context_spin.setSingleStep(1024)
+        self.local_context_spin.setValue(config.summarizer.local_context_window)
+        self.local_context_spin.setSuffix(" tokens")
+        embedded_form.addRow("Context window:", self.local_context_spin)
+
+        local_action_row = QHBoxLayout()
+        self.local_model_status = QLabel("")
+        self.local_model_status.setWordWrap(True)
+        local_action_row.addWidget(self.local_model_status, stretch=1)
+
+        self.local_download_btn = QPushButton("Download")
+        self.local_download_btn.clicked.connect(self._download_local_model)
+        local_action_row.addWidget(self.local_download_btn)
+        embedded_form.addRow("Status:", local_action_row)
+
+        layout.addWidget(self.embedded_group)
+
+        # ── Local server (Ollama-like / LM Studio) ───────────────────
+        self.local_server_group = QGroupBox("Ollama-Like Server")
+        local_form = QFormLayout(self.local_server_group)
 
         self.ollama_url_edit = QLineEdit(config.summarizer.ollama_url)
         self.ollama_url_edit.setPlaceholderText("http://localhost:11434")
@@ -209,18 +352,18 @@ class SettingsDialog(QDialog):
         ollama_row.addWidget(self.fetch_btn)
         local_form.addRow("Model:", ollama_row)
 
-        layout.addWidget(local_group)
+        layout.addWidget(self.local_server_group)
 
         # ── API Keys ──────────────────────────────────────────────────
-        keys_group = QGroupBox("API Keys")
-        keys_form = QFormLayout(keys_group)
+        self.openai_group = QGroupBox("API Keys")
+        keys_form = QFormLayout(self.openai_group)
 
         self.openai_key_edit = QLineEdit(config.summarizer.openai_api_key)
         self.openai_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.openai_key_edit.setPlaceholderText("sk-... (for OpenAI backend)")
         keys_form.addRow("OpenAI key:", self.openai_key_edit)
 
-        layout.addWidget(keys_group)
+        layout.addWidget(self.openai_group)
 
         # ── Audio settings ─────────────────────────────────────────────
         audio_group = QGroupBox("Audio")
@@ -239,7 +382,13 @@ class SettingsDialog(QDialog):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["dark", "light"])
         self.theme_combo.setCurrentText(config.ui.theme)
-        ui_form.addRow("Theme:", self.theme_combo)
+
+        theme_row = QHBoxLayout()
+        theme_row.addWidget(self.theme_combo)
+        self._theme_pro_label = QLabel("")
+        theme_row.addWidget(self._theme_pro_label)
+        ui_form.addRow("Theme:", theme_row)
+        self._refresh_theme_lock()
 
         self.on_top_check = QCheckBox("Always on top")
         self.on_top_check.setChecked(config.ui.always_on_top)
@@ -252,22 +401,163 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(ui_group)
 
+        # ── About tab ─────────────────────────────────────────────────
+        about_widget = QWidget()
+        about_layout = QVBoxLayout(about_widget)
+        about_layout.setSpacing(12)
+
+        import livescribe
+        version = livescribe.__version__
+
+        project_group = QGroupBox("About LiveScribe")
+        project_form = QFormLayout(project_group)
+
+        project_form.addRow("Version:", QLabel(version))
+        project_form.addRow("Author:", QLabel("appatalks"))
+
+        repo_label = QLabel('<a href="https://github.com/appatalks/LiveScribe">github.com/appatalks/LiveScribe</a>')
+        repo_label.setOpenExternalLinks(True)
+        project_form.addRow("Repository:", repo_label)
+
+        project_form.addRow("License:", QLabel("MIT"))
+
+        desc_label = QLabel(
+            "A floating desktop app that records, transcribes, and summarizes "
+            "your spoken audio into organized notes."
+        )
+        desc_label.setWordWrap(True)
+        project_form.addRow(desc_label)
+
+        about_layout.addWidget(project_group)
+
+        # ── Check for updates ─────────────────────────────────────────
+        update_group = QGroupBox("Updates")
+        update_form = QFormLayout(update_group)
+
+        self._update_status = QLabel(f"Current version: {version}")
+        self._update_status.setWordWrap(True)
+        update_form.addRow(self._update_status)
+
+        self._check_update_btn = QPushButton("Check for Updates")
+        self._check_update_btn.clicked.connect(self._check_for_updates)
+        update_form.addRow(self._check_update_btn)
+
+        about_layout.addWidget(update_group)
+
+        # ── Support ───────────────────────────────────────────────────
+        support_group = QGroupBox("Support LiveScribe")
+        support_form = QFormLayout(support_group)
+
+        support_msg = QLabel(
+            "LiveScribe is freeware and open source. If it's useful to you, "
+            "please consider supporting development. Activate all features for free below."
+        )
+        support_msg.setWordWrap(True)
+        support_form.addRow(support_msg)
+
+        paypal_row = QHBoxLayout()
+        paypal_qr_label = QLabel()
+        qr_path = _resolve_assets_dir()
+        if qr_path:
+            qr_file = qr_path / "paypal-qr-code.png"
+            if qr_file.exists():
+                pixmap = QPixmap(str(qr_file)).scaled(
+                    80, 80, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                paypal_qr_label.setPixmap(pixmap)
+        paypal_row.addWidget(paypal_qr_label)
+        paypal_link = QLabel(
+            '<a href="https://www.paypal.com/donate/?hosted_button_id=3KPNXNL6QTZW2"'
+            ' style="font-size: 18px; font-weight: bold;">'
+            'Donate via PayPal</a>'
+        )
+        paypal_link.setOpenExternalLinks(True)
+        paypal_row.addWidget(paypal_link, stretch=1)
+        support_form.addRow("PayPal:", paypal_row)
+
+        btc_addr = "16CowvxvLSR4BPEP9KJZiR622UU7hGEce5"
+        btc_label = QLabel(btc_addr)
+        btc_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
+        copy_btc_btn = QPushButton("Copy")
+        copy_btc_btn.setFixedWidth(60)
+        copy_btc_btn.clicked.connect(
+            lambda: (
+                QApplication.clipboard().setText(btc_addr),
+                QMessageBox.information(self, "Copied", "Bitcoin address copied to clipboard."),
+            )
+        )
+        btc_row = QHBoxLayout()
+        btc_row.addWidget(btc_label, stretch=1)
+        btc_row.addWidget(copy_btc_btn)
+        support_form.addRow("Bitcoin:", btc_row)
+
+        eth_addr = "0xf75278bd6e2006e6ef4847c9a9293e509ab815c5"
+        eth_label = QLabel(eth_addr)
+        eth_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
+        copy_eth_btn = QPushButton("Copy")
+        copy_eth_btn.setFixedWidth(60)
+        copy_eth_btn.clicked.connect(
+            lambda: (
+                QApplication.clipboard().setText(eth_addr),
+                QMessageBox.information(self, "Copied", "Ethereum address copied to clipboard."),
+            )
+        )
+        eth_row = QHBoxLayout()
+        eth_row.addWidget(eth_label, stretch=1)
+        eth_row.addWidget(copy_eth_btn)
+        support_form.addRow("Ethereum:", eth_row)
+
+        about_layout.addWidget(support_group)
+
+        # ── Pro Registration ──────────────────────────────────────────
+        pro_group = QGroupBox("Pro Registration")
+        pro_form = QFormLayout(pro_group)
+
+        if config.license.registered and config.license.license_key:
+            masked = config.license.license_key[:4] + "****" + config.license.license_key[-4:]
+            self._pro_status = QLabel(f"✓ Registered — {masked}")
+        else:
+            self._pro_status = QLabel("Not yet activated.")
+        self._pro_status.setWordWrap(True)
+        pro_form.addRow("Status:", self._pro_status)
+
+        self._activate_btn = QPushButton("Activate All Features")
+        self._activate_btn.clicked.connect(self._activate_free)
+        pro_form.addRow(self._activate_btn)
+
+        about_layout.addWidget(pro_group)
+        about_layout.addStretch()
+
+        self._tabs.addTab(about_widget, "About")
+
         # ── Buttons ────────────────────────────────────────────────────
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        outer_layout.addWidget(buttons)
+
+        self._on_backend_changed(self.sum_backend_combo.currentText())
 
     def _save(self):
         """Apply settings to config and persist."""
         self.cfg.transcription.model_size = self.model_combo.currentText()
         lang = self.lang_edit.text().strip()
         self.cfg.transcription.language = lang if lang else None
+        self.cfg.transcription.live_transcription = self.live_transcription_check.isChecked()
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
+        self.cfg.summarizer.local_model_key = self.local_model_combo.currentData()
+        self.cfg.summarizer.local_context_window = self.local_context_spin.value()
         self.cfg.summarizer.system_prompt = self.prompt_edit.toPlainText().strip()
         self.cfg.summarizer.ollama_url = self.ollama_url_edit.text().strip()
         self.cfg.summarizer.ollama_model = self.ollama_model_combo.currentText().strip()
@@ -275,7 +565,8 @@ class SettingsDialog(QDialog):
 
         self.cfg.audio.capture_system_audio = self.capture_sys.isChecked()
 
-        self.cfg.ui.theme = self.theme_combo.currentText()
+        if self.theme_combo.isEnabled():
+            self.cfg.ui.theme = self.theme_combo.currentText()
         self.cfg.ui.always_on_top = self.on_top_check.isChecked()
         self.cfg.ui.opacity = self.opacity_slider.value() / 100.0
 
@@ -284,7 +575,99 @@ class SettingsDialog(QDialog):
 
     def _on_backend_changed(self, backend: str):
         """Show/hide relevant fields based on backend selection."""
-        pass  # all fields visible for now
+        is_copilot = backend == "copilot"
+        is_local = backend == "local"
+        is_ollama_like = backend == "ollama-like"
+        is_openai = backend == "openai"
+        self.copilot_group.setVisible(is_copilot)
+        self.copilot_model_combo.setEnabled(is_copilot)
+        self.copilot_auth_label.setEnabled(is_copilot)
+        self.copilot_login_btn.setEnabled(is_copilot)
+        self.embedded_group.setVisible(is_local)
+        self.local_model_combo.setEnabled(is_local and not self._downloading_local_model)
+        self.local_context_spin.setEnabled(is_local)
+        self.local_model_status.setEnabled(is_local)
+        self.local_download_btn.setEnabled(is_local and not self._downloading_local_model)
+        self.local_server_group.setVisible(is_ollama_like)
+        self.openai_group.setVisible(is_openai)
+        self.openai_key_edit.setEnabled(is_openai)
+        self._refresh_local_model_status()
+
+    def _launch_copilot_login(self):
+        """Start the Copilot CLI login flow from the settings dialog."""
+        ok, message = Summarizer.launch_copilot_login()
+        if ok:
+            QMessageBox.information(
+                self,
+                "Copilot Login",
+                message + "\n\nFinish login there, then come back and try summarizing again.",
+            )
+        else:
+            QMessageBox.warning(self, "Copilot Login", message)
+
+    def _refresh_local_model_status(self):
+        """Refresh the embedded model availability label and button text."""
+        model_key = self.local_model_combo.currentData()
+        if not model_key:
+            self.local_model_status.setText("Select a local model.")
+            self.local_download_btn.setText("Download")
+            return
+
+        downloaded = Summarizer.is_local_model_downloaded(model_key)
+        runtime_ready = Summarizer.has_local_runtime()
+        if self._downloading_local_model:
+            self.local_model_status.setText("Downloading model into ~/.livescribe/models…")
+            self.local_download_btn.setText("Downloading…")
+            return
+
+        if downloaded and runtime_ready:
+            self.local_model_status.setText("Model downloaded and ready for local summarization.")
+            self.local_download_btn.setText("Re-download")
+        elif downloaded:
+            self.local_model_status.setText(
+                "Model downloaded, but llama-cpp-python is not installed in this environment yet."
+            )
+            self.local_download_btn.setText("Re-download")
+        else:
+            self.local_model_status.setText("Model not downloaded yet.")
+            self.local_download_btn.setText("Download")
+
+    def _download_local_model(self):
+        """Download the selected embedded local summarizer model in a background thread."""
+        model_key = self.local_model_combo.currentData()
+        if not model_key:
+            QMessageBox.warning(self, "Local Model", "Choose a local model first.")
+            return
+
+        self._downloading_local_model = True
+        self._on_backend_changed(self.sum_backend_combo.currentText())
+
+        import threading
+
+        def _worker():
+            try:
+                Summarizer.download_local_model(model_key)
+                self._sig_local_model_downloaded.emit(model_key)
+            except Exception as exc:
+                self._sig_local_model_download_failed.emit(str(exc))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @pyqtSlot(str)
+    def _on_local_model_downloaded(self, model_key: str):
+        """Handle successful embedded local model download."""
+        self._downloading_local_model = False
+        self._on_backend_changed(self.sum_backend_combo.currentText())
+        self._refresh_local_model_status()
+        QMessageBox.information(self, "Local Model", "Local model download complete.")
+
+    @pyqtSlot(str)
+    def _on_local_model_download_failed(self, error: str):
+        """Handle embedded local model download failure."""
+        self._downloading_local_model = False
+        self._on_backend_changed(self.sum_backend_combo.currentText())
+        self._refresh_local_model_status()
+        QMessageBox.warning(self, "Local Model", f"Download failed:\n{error}")
 
     def _fetch_models(self):
         """Fetch available models from the local server."""
@@ -330,6 +713,99 @@ class SettingsDialog(QDialog):
         else:
             QMessageBox.warning(self, "Fetch Models", f"Could not connect to {url}")
 
+    # ── About tab helpers ──────────────────────────────────────────────────
+
+    def _check_for_updates(self):
+        """Check GitHub releases for a newer version in a background thread."""
+        self._check_update_btn.setEnabled(False)
+        self._check_update_btn.setText("Checking…")
+        self._update_status.setText("Checking for updates…")
+
+        import threading
+
+        def _worker():
+            try:
+                import requests
+                resp = requests.get(
+                    "https://api.github.com/repos/appatalks/LiveScribe/releases/latest",
+                    timeout=10,
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    latest = data.get("tag_name", "").lstrip("v")
+                    import livescribe
+                    current = livescribe.__version__
+                    if latest and latest != current:
+                        self._sig_update_result.emit(
+                            f"New version available: {latest} (you have {current})\n"
+                            f"Download: {data.get('html_url', '')}"
+                        )
+                    else:
+                        self._sig_update_result.emit(f"You are up to date (v{current}).")
+                elif resp.status_code == 404:
+                    self._sig_update_result.emit("No releases found yet.")
+                else:
+                    self._sig_update_result.emit(f"GitHub returned status {resp.status_code}.")
+            except Exception as exc:
+                self._sig_update_result.emit(f"Update check failed: {exc}")
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @pyqtSlot(str)
+    def _on_update_result(self, message: str):
+        """Handle the result of the update check."""
+        self._update_status.setText(message)
+        self._check_update_btn.setEnabled(True)
+        self._check_update_btn.setText("Check for Updates")
+
+    @staticmethod
+    def _generate_license_key() -> str:
+        """Generate a valid LiveScribe license key."""
+        import hashlib
+        import secrets
+        import string
+        charset = string.ascii_uppercase + string.digits
+        groups = ["".join(secrets.choice(charset) for _ in range(4)) for _ in range(3)]
+        payload = "-".join(groups)
+        checksum = hashlib.sha256(
+            ("LiveScribePro:" + payload).encode()
+        ).hexdigest()[:4].upper()
+        return f"{payload}-{checksum}"
+
+    def _activate_free(self):
+        """Generate a key, activate it, and unlock all features in one click."""
+        if self.cfg.license.registered and self.cfg.license.license_key:
+            QMessageBox.information(self, "Already Activated", "All features are already activated.")
+            return
+
+        key = self._generate_license_key()
+        self.cfg.license.license_key = key
+        self.cfg.license.registered = True
+        self.cfg.save()
+
+        masked = key[:4] + "****" + key[-4:]
+        self._pro_status.setText(f"✓ Activated — {masked}")
+        self._activate_btn.setText("Activated ✓")
+        self._activate_btn.setEnabled(False)
+        self._refresh_theme_lock()
+        QMessageBox.information(
+            self, "Activated",
+            "All features are now unlocked!\n\n"
+            "If LiveScribe is useful to you, please consider "
+            "supporting development with a donation. Thank you!",
+        )
+
+    def _refresh_theme_lock(self):
+        """Enable or disable theme selection based on activation status."""
+        is_active = self.cfg.license.registered and bool(self.cfg.license.license_key)
+        self.theme_combo.setEnabled(is_active)
+        if is_active:
+            self._theme_pro_label.setText("")
+        else:
+            self._theme_pro_label.setText("<i>Activate to unlock</i>")
+            self.theme_combo.setCurrentText("dark")
+
 
 class LiveScribeWindow(QWidget):
     """Main floating window."""
@@ -346,12 +822,21 @@ class LiveScribeWindow(QWidget):
         self.cfg = config
         self._drag_pos: QPoint | None = None
 
+        icon_path = _resolve_app_icon_path()
+        if icon_path:
+            self.setWindowIcon(QIcon(str(icon_path)))
+
         # ── Backend components ─────────────────────────────────────────
         self.recorder = Recorder(config.audio)
         self.transcriber = Transcriber(config.transcription)
         self.summarizer = Summarizer(config.summarizer)
 
         self._transcript_text = ""
+
+        # ── Live transcription state ───────────────────────────────────
+        self._live_thread: threading.Thread | None = None
+        self._live_stop = threading.Event()
+        self._live_frame_cursor: int = 0
 
         # ── Session history (in-memory) ────────────────────────────────
         # Each entry: {"audio": np.ndarray, "transcript": str, "summary": str,
@@ -410,12 +895,13 @@ class LiveScribeWindow(QWidget):
         # ── Custom title bar ───────────────────────────────────────────
         title_bar = QWidget()
         title_bar.setObjectName("titleBar")
-        title_bar.setFixedHeight(40)
+        title_bar.setFixedHeight(44)
         tb_layout = QHBoxLayout(title_bar)
-        tb_layout.setContentsMargins(12, 0, 4, 0)
+        tb_layout.setContentsMargins(14, 0, 4, 0)
 
-        title_label = QLabel("LiveScribe")
+        title_label = QLabel("Live<span style='color: #f38ba8;'>Scribe</span>")
         title_label.setObjectName("titleLabel")
+        title_label.setTextFormat(Qt.TextFormat.RichText)
         tb_layout.addWidget(title_label)
 
         tb_layout.addStretch()
@@ -496,10 +982,12 @@ class LiveScribeWindow(QWidget):
 
         # Transcript section
         self.transcript_section = CollapsibleSection("Transcription", "transcriptArea")
+        self.transcript_section.expand()
         cl.addWidget(self.transcript_section)
 
         # Summary section
-        self.summary_section = CollapsibleSection("Summary & Notes", "summaryArea", editable=True)
+        self.summary_section = CollapsibleSection("Summary && Notes", "summaryArea", editable=True)
+        self.summary_section.expand()
         cl.addWidget(self.summary_section)
 
         # Action buttons
@@ -717,16 +1205,31 @@ class LiveScribeWindow(QWidget):
             self.recorder.start()
             self.record_btn.set_recording(True)
             self._timer.start()
+            self._transcript_text = ""
             self.status_label.setText("Recording…")
             self.btn_transcribe.setEnabled(False)
             self.btn_summarize.setEnabled(False)
             self.btn_play.setEnabled(False)
             self.btn_save_wav.setEnabled(False)
+
+            # Start live transcription if enabled (not supported on Windows
+            # where transcription is isolated in a helper subprocess)
+            if self.cfg.transcription.live_transcription:
+                import platform
+                if platform.system() == "Windows":
+                    self.status_label.setText(
+                        "Recording… (live transcription not available on Windows)"
+                    )
+                else:
+                    self._start_live_transcription()
         except Exception as exc:
             self.status_label.setText(f"Mic error: {exc}")
 
     def _stop_recording(self):
         try:
+            # Stop live transcription first
+            self._stop_live_transcription()
+
             self.recorder.stop()
             self.record_btn.set_recording(False)
             self._timer.stop()
@@ -738,19 +1241,26 @@ class LiveScribeWindow(QWidget):
             audio = self.recorder.get_audio().copy()
             entry = {
                 "audio": audio,
-                "transcript": "",
+                "transcript": self._transcript_text,
                 "summary": "",
                 "timestamp": datetime.datetime.now().strftime("%H:%M"),
                 "duration": self.recorder.duration_seconds,
             }
             self._history.append(entry)
             self._history_idx = len(self._history) - 1
-            self._transcript_text = ""
-            self.transcript_section.clear()
+
+            # Preserve live transcript if we have one, otherwise clear
+            if not self._transcript_text:
+                self.transcript_section.clear()
             self.summary_section.clear()
 
-            self.status_label.setText(f"Recorded {mins}:{secs:02d} — session {self._history_idx + 1}")
+            has_live = bool(self._transcript_text)
+            status = f"Recorded {mins}:{secs:02d} — session {self._history_idx + 1}"
+            if has_live:
+                status += " (live transcript ready)"
+            self.status_label.setText(status)
             self.btn_transcribe.setEnabled(True)
+            self.btn_summarize.setEnabled(has_live)
             self.btn_play.setEnabled(True)
             self.btn_save_wav.setEnabled(True)
             self._hist_update_nav()
@@ -762,6 +1272,78 @@ class LiveScribeWindow(QWidget):
         secs = int(self.recorder.duration_seconds)
         mins, secs = divmod(secs, 60)
         self.timer_label.setText(f"{mins:02d}:{secs:02d}")
+
+    # ── Live transcription ─────────────────────────────────────────────────
+
+    def _start_live_transcription(self):
+        """Begin streaming transcription on a background thread while recording."""
+        self._live_stop.clear()
+        self._live_frame_cursor = 0
+        self._transcript_text = ""
+        self.transcript_section.clear()
+        self.transcript_section.expand()
+        self.status_label.setText("Recording… (loading transcription model)")
+
+        def _live_worker():
+            import numpy as np
+
+            # Pre-load the Whisper model before entering the loop
+            try:
+                self.transcriber._ensure_local_model()
+                self._sig_segment.emit("[Live transcription active]")
+            except Exception as exc:
+                self._sig_segment.emit(f"[Live transcription error: {exc}]")
+                return
+
+            interval = 8  # seconds between transcription passes
+            overlap_seconds = 3  # overlap with previous chunk for continuity
+            sample_rate = self.recorder._mic_rate
+            overlap_frames = int(overlap_seconds * sample_rate)
+            prev_tail: np.ndarray | None = None
+
+            while not self._live_stop.wait(timeout=interval):
+                # Grab new mic frames since last cursor
+                with self.recorder._lock:
+                    frames = list(self.recorder._mic_frames[self._live_frame_cursor:])
+                    self._live_frame_cursor = len(self.recorder._mic_frames)
+
+                if not frames:
+                    continue
+
+                chunk = np.concatenate(frames)
+                if chunk.ndim > 1:
+                    chunk = chunk[:, 0]
+
+                # Prepend overlap from previous chunk for continuity
+                if prev_tail is not None:
+                    chunk = np.concatenate([prev_tail, chunk])
+
+                # Save tail for next overlap
+                if chunk.size > overlap_frames:
+                    prev_tail = chunk[-overlap_frames:].copy()
+                else:
+                    prev_tail = chunk.copy()
+
+                # Resample to 16 kHz if needed
+                if sample_rate != 16000:
+                    target_len = int(len(chunk) * 16000 / sample_rate)
+                    indices = np.linspace(0, len(chunk) - 1, target_len)
+                    chunk = np.interp(indices, np.arange(len(chunk)), chunk).astype(np.float32)
+
+                text = self.transcriber.transcribe_live_chunk(chunk, 16000)
+                if text:
+                    self._sig_segment.emit(text)
+                    self._transcript_text += ("\n" if self._transcript_text else "") + text
+
+        self._live_thread = threading.Thread(target=_live_worker, daemon=True)
+        self._live_thread.start()
+
+    def _stop_live_transcription(self):
+        """Signal the live transcription thread to stop and wait for it."""
+        if self._live_thread is not None:
+            self._live_stop.set()
+            self._live_thread.join(timeout=5)
+            self._live_thread = None
 
     # ── Transcription ──────────────────────────────────────────────────────
 
@@ -806,6 +1388,9 @@ class LiveScribeWindow(QWidget):
     @pyqtSlot(str)
     def _on_transcription_done(self, text: str):
         self._transcript_text = text
+        self.transcript_section.set_text(text)
+        if text:
+            self.transcript_section.expand()
         self.btn_transcribe.setEnabled(True)
         self.btn_summarize.setEnabled(True)
         self.status_label.setText("Transcription complete")
@@ -838,8 +1423,13 @@ class LiveScribeWindow(QWidget):
     @pyqtSlot(str)
     def _on_summary_done(self, summary: str):
         self.summary_section.set_text(summary)
+        if summary:
+            self.summary_section.expand()
         self.btn_summarize.setEnabled(True)
-        self.status_label.setText("Summary ready")
+        if summary.startswith("[") and "error" in summary.lower():
+            self.status_label.setText("Summary error")
+        else:
+            self.status_label.setText("Summary ready")
         # Auto-save current session to history
         self._hist_save_current()
 
@@ -1061,16 +1651,12 @@ class LiveScribeWindow(QWidget):
 
     @pyqtSlot()
     def _save_markdown(self):
-        """Save transcript and summary as a Markdown file."""
+        """Save the generated summary as a Markdown file."""
         import datetime
 
         parts: list[str] = []
         ts = datetime.datetime.now()
         parts.append(f"# LiveScribe Notes — {ts.strftime('%B %d, %Y %H:%M')}\n")
-
-        if self._transcript_text:
-            parts.append("## Transcript\n")
-            parts.append(self._transcript_text + "\n")
 
         summary = self.summary_section.content.toPlainText()
         if summary:
@@ -1138,6 +1724,10 @@ def run_app(config: AppConfig | None = None):
 
     app = QApplication(sys.argv)
     app.setApplicationName("LiveScribe")
+
+    icon_path = _resolve_app_icon_path()
+    if icon_path:
+        app.setWindowIcon(QIcon(str(icon_path)))
 
     window = LiveScribeWindow(config)
     window.show()

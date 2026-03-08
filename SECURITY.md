@@ -42,12 +42,12 @@ We will respond within 48 hours and work with you to understand and address the 
 
 ### Privacy
 - **Local-first**: By default, LiveScribe uses local Whisper models for transcription
-- **Optional cloud**: AI summarization can use Copilot CLI, Ollama (local), or OpenAI (cloud)
+- **Optional cloud**: AI summarization can use Copilot CLI, an ollama-like local server, or OpenAI (cloud)
 - **No telemetry**: LiveScribe does not collect or send any usage data
 
 ## Best Practices for Users
 
 1. **Protect your API keys**: If using OpenAI backend, keep your API key secure
-2. **Use local models**: For maximum privacy, use Ollama backend for fully offline operation
+2. **Use local models**: For maximum privacy, use the embedded `local` backend or an ollama-like server for fully offline operation
 3. **Review recordings**: Be mindful of sensitive content in recordings before sharing exports
 4. **Keep updated**: Regularly update to the latest version for security patches

@@ -1,14 +1,53 @@
-"""LLM-powered summarization — supports GitHub Models, Ollama, and OpenAI backends."""
+"""LLM-powered summarization — supports Copilot, local llama.cpp, ollama-like servers, and OpenAI backends."""
 
 from __future__ import annotations
 
 import json
+import os
+import platform
+import shutil
+import subprocess
 import threading
+from pathlib import Path
 from typing import Callable
 
 import requests
 
-from livescribe.config import SummarizerConfig
+from livescribe.config import MODELS_DIR, SummarizerConfig
+
+
+LOCAL_MODEL_CATALOG = {
+    "gemma-2-2b-it": {
+        "label": "Gemma 2 2B Instruct",
+        "repo_id": "bartowski/gemma-2-2b-it-GGUF",
+        "filename": "gemma-2-2b-it-Q4_K_M.gguf",
+        "size": "2B",
+        "ram": "~3 GB RAM",
+    },
+    "gemma-2-9b-it": {
+        "label": "Gemma 2 9B Instruct",
+        "repo_id": "bartowski/gemma-2-9b-it-GGUF",
+        "filename": "gemma-2-9b-it-Q4_K_M.gguf",
+        "size": "9B",
+        "ram": "~9 GB RAM",
+    },
+    "llama-3.1-4b-instruct": {
+        "label": "Llama 3.1 ELM Turbo 4B Instruct",
+        "repo_id": "mradermacher/Llama3.1-elm-turbo-4B-instruct-GGUF",
+        "filename": "Llama3.1-elm-turbo-4B-instruct.Q4_K_M.gguf",
+        "size": "4B",
+        "ram": "~5 GB RAM",
+    },
+    "mistral-nemo-12b-instruct": {
+        "label": "Mistral Nemo 12B Instruct",
+        "repo_id": "bartowski/Mistral-Nemo-Instruct-2407-GGUF",
+        "filename": "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf",
+        "size": "12B",
+        "ram": "~12 GB RAM",
+    },
+}
+
+LOCAL_SUMMARY_MODELS_DIR = MODELS_DIR / "summarizer"
 
 
 class Summarizer:
@@ -16,6 +55,8 @@ class Summarizer:
 
     def __init__(self, config: SummarizerConfig):
         self.cfg = config
+        self._local_llm = None
+        self._local_model_key: str | None = None
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -24,9 +65,13 @@ class Summarizer:
         if not transcript.strip():
             return ""
 
-        if self.cfg.backend == "copilot":
+        backend = self.normalize_backend_name(self.cfg.backend)
+
+        if backend == "copilot":
             return self._summarize_copilot(transcript)
-        elif self.cfg.backend == "openai":
+        elif backend == "local":
+            return self._summarize_local(transcript)
+        elif backend == "openai":
             return self._summarize_openai(transcript)
         else:
             return self._summarize_ollama(transcript)
@@ -56,38 +101,39 @@ class Summarizer:
 
     def _summarize_copilot(self, transcript: str) -> str:
         """Summarize via Copilot CLI (copilot --prompt)."""
-        import shutil
-        import subprocess
-
-        copilot_bin = shutil.which("copilot")
-        if not copilot_bin:
-            return "[Copilot CLI not found] Install it from https://github.com/github/copilot-cli"
-
-        prompt = (
-            f"{self.cfg.system_prompt}\n\n"
-            f"Here is the meeting transcript:\n\n{transcript}"
+        command = self._build_copilot_command(
+            "--model",
+            self.cfg.copilot_model,
+            "--prompt",
+            (
+                f"{self.cfg.system_prompt}\n\n"
+                f"Here is the meeting transcript:\n\n{transcript}"
+            ),
+            "--allow-all-tools",
+            "--no-color",
         )
+        if not command:
+            return "[Copilot CLI not found] Install it from https://github.com/github/copilot-cli"
 
         try:
             result = subprocess.run(
-                [
-                    copilot_bin,
-                    "--model", self.cfg.copilot_model,
-                    "--prompt", prompt,
-                    "--allow-all-tools",
-                    "--no-color",
-                ],
+                command,
                 capture_output=True,
                 text=True,
                 timeout=180,
             )
 
+            stdout_text = result.stdout.strip()
+            stderr_text = result.stderr.strip()
+
             if result.returncode != 0:
-                stderr = result.stderr.strip()
-                return f"[Copilot CLI error] {stderr or 'Unknown error'}"
+                return f"[Copilot CLI error] {stderr_text or stdout_text or 'Unknown error'}"
+
+            if self._copilot_stderr_has_error(stderr_text):
+                return f"[Copilot CLI error] {self._extract_copilot_error(stderr_text)}"
 
             # Parse output — strip the usage stats footer
-            output = result.stdout.strip()
+            output = stdout_text
             lines = output.split("\n")
 
             # Find where the stats footer begins (starts with empty line then "Total usage")
@@ -101,17 +147,289 @@ class Summarizer:
             while summary_lines and not summary_lines[-1].strip():
                 summary_lines.pop()
 
-            return "\n".join(summary_lines).strip()
+            summary = "\n".join(summary_lines).strip()
+            if summary:
+                return summary
+
+            if stderr_text:
+                return f"[Copilot CLI error] {self._extract_copilot_error(stderr_text)}"
+
+            return "[Copilot CLI error] No summary was returned"
 
         except subprocess.TimeoutExpired:
             return "[Copilot CLI timeout] The request took too long"
         except Exception as exc:
             return f"[Copilot CLI error] {exc}"
 
-    # ── Ollama / Local server backend ─────────────────────────────────────
+    @staticmethod
+    def _copilot_stderr_has_error(stderr_text: str) -> bool:
+        """Return True when Copilot emitted a real error despite a zero exit code."""
+        if not stderr_text:
+            return False
+
+        error_markers = (
+            "error:",
+            "no authentication information found",
+            "failed",
+            "exception",
+        )
+        lowered = stderr_text.lower()
+        return any(marker in lowered for marker in error_markers)
+
+    @staticmethod
+    def _extract_copilot_error(stderr_text: str) -> str:
+        """Reduce noisy CLI stderr down to the most relevant user-facing error lines."""
+        lines = [line.strip() for line in stderr_text.splitlines() if line.strip()]
+        relevant = []
+        for line in lines:
+            lower = line.lower()
+            if "microsoft.powershell_profile" in lower:
+                continue
+            if "missing file specification after redirection operator" in lower:
+                continue
+            if line.startswith("At ") or line.startswith("char:"):
+                continue
+            if line.startswith("+") or line.startswith("~"):
+                continue
+            if line.startswith("CategoryInfo") or line.startswith("FullyQualifiedErrorId"):
+                continue
+            relevant.append(line)
+
+        return "\n".join(relevant) if relevant else stderr_text.strip()
+
+    @staticmethod
+    def _build_copilot_command(*args: str) -> list[str] | None:
+        """Build a working Copilot CLI command across supported platforms."""
+        copilot_bin = shutil.which("copilot")
+        if not copilot_bin:
+            return None
+
+        if platform.system() == "Windows" and copilot_bin.lower().endswith(".bat"):
+            copilot_ps1 = Summarizer._find_adjacent_powershell_shim(copilot_bin)
+            if copilot_ps1:
+                return [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    copilot_ps1,
+                    *args,
+                ]
+
+        return [copilot_bin, *args]
+
+    @staticmethod
+    def launch_copilot_login() -> tuple[bool, str]:
+        """Launch the Copilot CLI login flow in a user-visible terminal."""
+        system = platform.system()
+        if system == "Windows":
+            copilot_bin = shutil.which("copilot")
+            copilot_ps1 = Summarizer._find_adjacent_powershell_shim(copilot_bin or "")
+            if copilot_ps1:
+                subprocess.Popen(
+                    [
+                        "powershell",
+                        "-NoExit",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        copilot_ps1,
+                        "login",
+                    ],
+                    creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+                )
+                return True, "Opened Copilot login in a new PowerShell window."
+            if copilot_bin:
+                subprocess.Popen(
+                    ["cmd", "/k", copilot_bin, "login"],
+                    creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+                )
+                return True, "Opened Copilot login in a new Command Prompt window."
+            return False, "Copilot CLI was not found in PATH."
+
+        if system == "Darwin":
+            copilot_bin = shutil.which("copilot")
+            if not copilot_bin:
+                return False, "Copilot CLI was not found in PATH."
+
+            command = f'{copilot_bin} login'
+            apple_script = (
+                'tell application "Terminal" to do script ' + json.dumps(command) + '\n'
+                'tell application "Terminal" to activate'
+            )
+            subprocess.Popen(["osascript", "-e", apple_script])
+            return True, "Opened Copilot login in Terminal."
+
+        copilot_bin = shutil.which("copilot")
+        if not copilot_bin:
+            return False, "Copilot CLI was not found in PATH."
+
+        shell_command = f'{copilot_bin} login; exec bash'
+        terminal_commands = [
+            ["x-terminal-emulator", "-e", "bash", "-lc", shell_command],
+            ["gnome-terminal", "--", "bash", "-lc", shell_command],
+            ["konsole", "-e", "bash", "-lc", shell_command],
+            ["xfce4-terminal", "-e", f"bash -lc \"{shell_command}\""],
+            ["xterm", "-e", "bash", "-lc", shell_command],
+        ]
+        for command in terminal_commands:
+            if shutil.which(command[0]):
+                subprocess.Popen(command)
+                return True, "Opened Copilot login in a terminal window."
+
+        return False, "No supported terminal emulator was found to launch Copilot login."
+
+    @staticmethod
+    def _find_adjacent_powershell_shim(copilot_bin: str) -> str | None:
+        """Find the PowerShell Copilot shim that lives next to the batch launcher on Windows."""
+        if not copilot_bin:
+            return None
+
+        candidate = str(Path(copilot_bin).with_suffix(".ps1"))
+        if Path(candidate).exists():
+            return candidate
+        return None
+
+    # ── Embedded local llama.cpp backend ──────────────────────────────────
+
+    def _summarize_local(self, transcript: str) -> str:
+        """Summarize with a GGUF model embedded directly in the app."""
+        model_path = self.get_local_model_path(self.cfg.local_model_key)
+        if not model_path.exists():
+            label = self.get_local_model_options().get(self.cfg.local_model_key, self.cfg.local_model_key)
+            return (
+                f"[Local model not downloaded] {label}\n"
+                "Open Settings, choose the Local backend, and click Download."
+            )
+
+        try:
+            llm = self._ensure_local_llm(model_path)
+            messages = [
+                {"role": "system", "content": self.cfg.system_prompt},
+                {
+                    "role": "user",
+                    "content": f"Here is the meeting transcript:\n\n{transcript}",
+                },
+            ]
+            try:
+                response = llm.create_chat_completion(
+                    messages=messages,
+                    temperature=self.cfg.local_temperature,
+                    max_tokens=self.cfg.local_max_tokens,
+                )
+            except Exception as exc:
+                if "system role not supported" not in str(exc).lower():
+                    raise
+
+                response = llm.create_chat_completion(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": (
+                                f"{self.cfg.system_prompt}\n\n"
+                                f"Here is the meeting transcript:\n\n{transcript}"
+                            ),
+                        }
+                    ],
+                    temperature=self.cfg.local_temperature,
+                    max_tokens=self.cfg.local_max_tokens,
+                )
+            return response["choices"][0]["message"]["content"].strip()
+        except ModuleNotFoundError:
+            return (
+                "[Local runtime unavailable] llama-cpp-python is not installed.\n"
+                "Install the local backend runtime or use Copilot, Ollama, or OpenAI instead."
+            )
+        except Exception as exc:
+            return f"[Local summarization error] {exc}"
+
+    def _ensure_local_llm(self, model_path: Path):
+        """Load the configured local GGUF model if needed."""
+        if self._local_llm is not None and self._local_model_key == self.cfg.local_model_key:
+            return self._local_llm
+
+        from llama_cpp import Llama
+
+        threads = max(1, (os.cpu_count() or 4) - 1)
+        self._local_llm = Llama(
+            model_path=str(model_path),
+            n_ctx=self.cfg.local_context_window,
+            n_threads=threads,
+            n_gpu_layers=self.cfg.local_gpu_layers,
+            verbose=False,
+        )
+        self._local_model_key = self.cfg.local_model_key
+        return self._local_llm
+
+    @staticmethod
+    def get_local_model_options() -> dict[str, str]:
+        """Return the embedded local summarizer model labels keyed by config id."""
+        return {
+            key: f"{meta['label']} ({meta['size']}, {meta['ram']})"
+            for key, meta in LOCAL_MODEL_CATALOG.items()
+        }
+
+    @staticmethod
+    def get_local_model_path(model_key: str) -> Path:
+        """Return the expected on-disk path for a downloaded local GGUF model."""
+        meta = LOCAL_MODEL_CATALOG.get(model_key)
+        if not meta:
+            return LOCAL_SUMMARY_MODELS_DIR / model_key / "model.gguf"
+        return LOCAL_SUMMARY_MODELS_DIR / model_key / meta["filename"]
+
+    @staticmethod
+    def is_local_model_downloaded(model_key: str) -> bool:
+        """Return True when the selected embedded model is already present on disk."""
+        return Summarizer.get_local_model_path(model_key).exists()
+
+    @staticmethod
+    def download_local_model(model_key: str) -> Path:
+        """Download the selected embedded model into the app's local cache."""
+        meta = LOCAL_MODEL_CATALOG.get(model_key)
+        if not meta:
+            raise ValueError(f"Unknown local model: {model_key}")
+
+        try:
+            from huggingface_hub import hf_hub_download
+            from huggingface_hub.utils import disable_progress_bars
+        except Exception as exc:
+            raise RuntimeError("huggingface_hub is required to download local models") from exc
+
+        target_dir = LOCAL_SUMMARY_MODELS_DIR / model_key
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # In packaged GUI builds, tqdm can be given a missing stderr stream and crash
+        # while rendering progress. Disable progress bars for app-managed downloads.
+        disable_progress_bars()
+
+        downloaded_path = hf_hub_download(
+            repo_id=meta["repo_id"],
+            filename=meta["filename"],
+            local_dir=str(target_dir),
+        )
+        return Path(downloaded_path)
+
+    @staticmethod
+    def has_local_runtime() -> bool:
+        """Return True when llama-cpp-python is importable in the current environment."""
+        try:
+            import llama_cpp  # noqa: F401
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    def normalize_backend_name(backend: str) -> str:
+        """Map legacy backend labels to the current canonical names."""
+        if backend == "ollama":
+            return "ollama-like"
+        return backend
+
+    # ── Ollama-like / Local server backend ────────────────────────────────
 
     def _summarize_ollama(self, transcript: str) -> str:
-        """Summarize via local server — tries OpenAI-compatible API first, then Ollama native."""
+        """Summarize via an ollama-like local server — tries OpenAI-compatible API first, then Ollama native."""
         # Try OpenAI-compatible endpoint first (LM Studio, vLLM, etc.)
         try:
             from openai import OpenAI
@@ -189,7 +507,7 @@ class Summarizer:
 
     @staticmethod
     def check_ollama(url: str = "http://localhost:11434") -> bool:
-        """Return True if Ollama is reachable."""
+        """Return True if an ollama-like server is reachable."""
         try:
             resp = requests.get(url, timeout=3)
             return resp.status_code == 200

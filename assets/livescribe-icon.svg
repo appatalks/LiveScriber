@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">LiveScribe icon</title>
+  <desc id="desc">An angular clipboard with notes and an audio waveform.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7e6cb"/>
+      <stop offset="100%" stop-color="#c9d8d4"/>
+    </linearGradient>
+    <linearGradient id="board" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#163847"/>
+      <stop offset="100%" stop-color="#295a66"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fffdf8"/>
+      <stop offset="100%" stop-color="#efe7d8"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <path d="M50 62 168 40c17-3 32 8 35 25l21 112c3 17-8 32-24 35L82 234c-17 3-32-8-35-25L26 97c-3-17 7-32 24-35Z" fill="#0e2832" opacity="0.18"/>
+  <path d="M58 46h118c18 0 32 14 32 32v108c0 18-14 32-32 32H58c-18 0-32-14-32-32V78c0-18 14-32 32-32Z" fill="url(#board)"/>
+  <path d="M94 28h46c10 0 18 8 18 18v10H76V46c0-10 8-18 18-18Z" fill="#c26b44"/>
+  <rect x="86" y="34" width="62" height="18" rx="9" fill="#efb180"/>
+  <path d="M48 68h138v116c0 10-8 18-18 18H66c-10 0-18-8-18-18Z" fill="url(#sheet)"/>
+  <path d="M145 68h41v41" fill="#dbcbb1"/>
+  <path d="M145 68l41 41h-25c-9 0-16-7-16-16Z" fill="#efe1c9"/>
+  <path d="M71 108h56" fill="none" stroke="#8aa0a2" stroke-linecap="round" stroke-width="8"/>
+  <path d="M71 126h44" fill="none" stroke="#a6b8b8" stroke-linecap="round" stroke-width="8"/>
+  <path d="M71 146h16l10-20 12 48 12-66 11 74 11-38 8 16h21" fill="none" stroke="#163847" stroke-linecap="round" stroke-linejoin="round" stroke-width="9"/>
+  <path d="M71 184h84" fill="none" stroke="#4a7177" stroke-linecap="round" stroke-width="8"/>
+  <path d="M149 88l27 27" fill="none" stroke="#d1bea2" stroke-linecap="round" stroke-width="6"/>
+  <circle cx="163" cy="152" r="18" fill="#df5b43"/>
+  <path d="M157 152h12" fill="none" stroke="#fff8f1" stroke-linecap="round" stroke-width="5"/>
+</svg>

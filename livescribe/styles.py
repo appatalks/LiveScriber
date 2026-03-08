@@ -5,20 +5,21 @@ DARK_THEME = """
 QWidget {
     background-color: #1e1e2e;
     color: #cdd6f4;
-    font-family: ".AppleSystemUIFont", "Helvetica Neue";
+    font-family: "Segoe UI", ".AppleSystemUIFont", "Helvetica Neue", Arial, sans-serif;
     font-size: 13px;
 }
 
 /* ── Title bar ─────────────────────────────────────────────────────────── */
 #titleBar {
     background-color: #181825;
-    border-bottom: 1px solid #313244;
+    border-bottom: 2px solid #f38ba8;
 }
 
 #titleLabel {
     color: #cdd6f4;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
 }
 
 #btnMinimize, #btnClose {
@@ -35,23 +36,23 @@ QWidget {
 
 /* ── Record button ───────────────────────────────────────────────────── */
 #recordBtn {
-    background-color: #45475a;
-    border: 3px solid #585b70;
-    border-radius: 32px;
-    min-width: 64px;
-    min-height: 64px;
-    max-width: 64px;
-    max-height: 64px;
+    background-color: #313244;
+    border: 3px solid #45475a;
+    border-radius: 36px;
+    min-width: 72px;
+    min-height: 72px;
+    max-width: 72px;
+    max-height: 72px;
 }
 
 #recordBtn:hover {
-    background-color: #585b70;
+    background-color: #45475a;
     border-color: #f38ba8;
 }
 
 #recordBtn[recording="true"] {
     background-color: #f38ba8;
-    border-color: #f38ba8;
+    border-color: #e06688;
 }
 
 /* ── Timer label ─────────────────────────────────────────────────────── */
@@ -172,12 +173,12 @@ LIGHT_THEME = """
 QWidget {
     background-color: #eff1f5;
     color: #4c4f69;
-    font-family: ".AppleSystemUIFont", "Helvetica Neue";
+    font-family: "Segoe UI", ".AppleSystemUIFont", "Helvetica Neue", Arial, sans-serif;
     font-size: 13px;
 }
 
-#titleBar { background-color: #e6e9ef; border-bottom: 1px solid #ccd0da; }
-#titleLabel { color: #4c4f69; font-size: 14px; font-weight: 600; }
+#titleBar { background-color: #e6e9ef; border-bottom: 2px solid #d20f39; }
+#titleLabel { color: #4c4f69; font-size: 15px; font-weight: 700; letter-spacing: 1px; }
 
 #btnMinimize, #btnClose {
     background: transparent; border: none; color: #8c8fa1;
@@ -188,10 +189,10 @@ QWidget {
 
 #recordBtn {
     background-color: #ccd0da; border: 3px solid #bcc0cc;
-    border-radius: 32px; min-width: 64px; min-height: 64px; max-width: 64px; max-height: 64px;
+    border-radius: 36px; min-width: 72px; min-height: 72px; max-width: 72px; max-height: 72px;
 }
 #recordBtn:hover { background-color: #bcc0cc; border-color: #d20f39; }
-#recordBtn[recording="true"] { background-color: #d20f39; border-color: #d20f39; }
+#recordBtn[recording="true"] { background-color: #d20f39; border-color: #b50d30; }
 
 #timerLabel { color: #6c6f85; font-size: 22px; font-family: "Menlo", "Courier New"; font-weight: 500; }
 #statusLabel { color: #8c8fa1; font-size: 11px; padding: 2px 8px; }
@@ -221,6 +222,7 @@ QWidget {
 }
 """
 
-
 def get_theme(name: str = "dark") -> str:
-    return LIGHT_THEME if name == "light" else DARK_THEME
+    if name == "light":
+        return LIGHT_THEME
+    return DARK_THEME
