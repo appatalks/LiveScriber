@@ -93,14 +93,12 @@ class Transcriber:
             return ""
 
         self._ensure_local_model()
-        task = "translate" if self.cfg.auto_translate_english else "transcribe"
         try:
             segments, _ = self._local_model.transcribe(
                 audio,
                 beam_size=3,  # balance speed vs accuracy for live
                 language=self.cfg.language,
                 vad_filter=False,  # we pre-filter silence; let Whisper see everything
-                task=task,
             )
             parts = [s.text.strip() for s in segments if s.text.strip()]
             return " ".join(parts)
@@ -263,14 +261,12 @@ class Transcriber:
 
     def _transcribe_segments(self, audio_input):
         """Run faster-whisper transcription and retry on CPU if CUDA runtime is unavailable."""
-        task = "translate" if self.cfg.auto_translate_english else "transcribe"
         try:
             return self._local_model.transcribe(
                 audio_input,
                 beam_size=self.cfg.beam_size,
                 language=self.cfg.language,
                 vad_filter=self.cfg.vad_filter,
-                task=task,
             )
         except Exception as exc:
             if not self._should_fallback_to_cpu(exc):
@@ -288,7 +284,6 @@ class Transcriber:
                 beam_size=self.cfg.beam_size,
                 language=self.cfg.language,
                 vad_filter=self.cfg.vad_filter,
-                task=task,
             )
 
     def _should_use_subprocess(self) -> bool:

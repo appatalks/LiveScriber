@@ -261,8 +261,8 @@ class SettingsDialog(QDialog):
         self.auto_translate_check = QCheckBox(self._t("auto_translate_label"))
         self.auto_translate_check.setChecked(config.transcription.auto_translate_english)
         self.auto_translate_check.setToolTip(
-            "When enabled, non-English speech is translated to English during transcription. "
-            "The summary will include both the original language and an English version."
+            "When enabled, an English translation is appended to the summary. "
+            "The transcript stays in the original language."
         )
         tx_form.addRow(self.auto_translate_check)
 
