@@ -23,6 +23,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "gemma-2-2b-it-Q4_K_M.gguf",
         "size": "2B",
         "ram": "~3 GB RAM",
+        "max_context": 8192,
     },
     "gemma-2-9b-it": {
         "label": "Gemma 2 9B Instruct",
@@ -30,6 +31,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "gemma-2-9b-it-Q4_K_M.gguf",
         "size": "9B",
         "ram": "~9 GB RAM",
+        "max_context": 8192,
     },
     "llama-3.1-4b-instruct": {
         "label": "Llama 3.1 ELM Turbo 4B Instruct",
@@ -37,6 +39,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "Llama3.1-elm-turbo-4B-instruct.Q4_K_M.gguf",
         "size": "4B",
         "ram": "~5 GB RAM",
+        "max_context": 8192,
     },
     "mistral-nemo-12b-instruct": {
         "label": "Mistral Nemo 12B Instruct",
@@ -44,6 +47,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf",
         "size": "12B",
         "ram": "~12 GB RAM",
+        "max_context": 32768,
     },
 }
 
@@ -339,9 +343,12 @@ class Summarizer:
                 "Open Settings, choose the Local backend, and click Download."
             )
 
+        # Auto-scale context window based on model capability
+        effective_ctx = self._effective_context_window()
+
         # Truncate transcript to avoid overflowing the context window.
         # Non-English text uses ~2-4x more tokens per character.
-        max_chars = self.cfg.local_context_window * 2
+        max_chars = effective_ctx * 2
         if len(transcript) > max_chars:
             transcript = transcript[:max_chars] + "\n\n[...transcript truncated to fit context window]"
 
@@ -397,7 +404,13 @@ class Summarizer:
 
     def _ensure_local_llm(self, model_path: Path):
         """Load the configured local GGUF model if needed."""
-        if self._local_llm is not None and self._local_model_key == self.cfg.local_model_key:
+        effective_ctx = self._effective_context_window()
+        needs_reload = (
+            self._local_llm is None
+            or self._local_model_key != self.cfg.local_model_key
+            or getattr(self, "_loaded_ctx", None) != effective_ctx
+        )
+        if not needs_reload:
             return self._local_llm
 
         from llama_cpp import Llama
@@ -405,13 +418,25 @@ class Summarizer:
         threads = max(1, (os.cpu_count() or 4) - 1)
         self._local_llm = Llama(
             model_path=str(model_path),
-            n_ctx=self.cfg.local_context_window,
+            n_ctx=effective_ctx,
             n_threads=threads,
             n_gpu_layers=self.cfg.local_gpu_layers,
             verbose=False,
         )
         self._local_model_key = self.cfg.local_model_key
+        self._loaded_ctx = effective_ctx
         return self._local_llm
+
+    def _effective_context_window(self) -> int:
+        """Return the context window to use, auto-scaled up to the model's max.
+
+        Uses the model's max_context from the catalog when it exceeds the user's
+        configured value, giving more room for longer transcripts.
+        """
+        user_ctx = self.cfg.local_context_window
+        meta = LOCAL_MODEL_CATALOG.get(self.cfg.local_model_key, {})
+        model_max = meta.get("max_context", user_ctx)
+        return max(user_ctx, model_max)
 
     @staticmethod
     def get_local_model_options() -> dict[str, str]:
