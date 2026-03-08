@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -81,12 +82,12 @@ def _resolve_app_icon_path() -> Path | None:
 
 
 class RecordButton(QPushButton):
-    """Circular record button with animated inner dot."""
+    """Circular record button with mic icon matching the LiveScribe banner."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("recordBtn")
-        self.setFixedSize(64, 64)
+        self.setFixedSize(72, 72)
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._recording = False
@@ -103,16 +104,38 @@ class RecordButton(QPushButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        w = self.width()
+        h = self.height()
+        cx, cy = w // 2, h // 2
+
         if self._recording:
-            # Draw a white square (stop icon)
+            # Stop square
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(QColor("#1e1e2e"))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(22, 22, 20, 20, 3, 3)
+            painter.drawRoundedRect(cx - 10, cy - 10, 20, 20, 3, 3)
         else:
-            # Draw a red circle (record icon)
-            painter.setBrush(QColor("#f38ba8"))
+            from PyQt6.QtGui import QPen
+            from PyQt6.QtCore import QRectF
+
+            # Mic body (capsule shape)
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(18, 18, 28, 28)
+            painter.setBrush(QColor("#f38ba8"))
+            painter.drawRoundedRect(cx - 5, cy - 12, 10, 17, 5, 5)
+
+            # Mic arc
+            pen = QPen(QColor("#f38ba8"))
+            pen.setWidth(2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            arc_rect = QRectF(cx - 9, cy - 6, 18, 20)
+            painter.drawArc(arc_rect, -10 * 16, -160 * 16)
+
+            # Mic stand line
+            painter.drawLine(cx, cy + 14, cx, cy + 18)
+
+            # Mic base
+            painter.drawLine(cx - 5, cy + 18, cx + 5, cy + 18)
 
         painter.end()
 
@@ -220,6 +243,14 @@ class SettingsDialog(QDialog):
         self.lang_edit = QLineEdit(config.transcription.language or "")
         self.lang_edit.setPlaceholderText("auto-detect (leave empty)")
         tx_form.addRow("Language:", self.lang_edit)
+
+        self.live_transcription_check = QCheckBox("Live transcription while recording (experimental)")
+        self.live_transcription_check.setChecked(config.transcription.live_transcription)
+        self.live_transcription_check.setToolTip(
+            "Stream a rough transcription while recording. Results may be incomplete — "
+            "use the Transcribe button after stopping for a full-accuracy pass."
+        )
+        tx_form.addRow(self.live_transcription_check)
 
         layout.addWidget(tx_group)
 
@@ -521,6 +552,7 @@ class SettingsDialog(QDialog):
         self.cfg.transcription.model_size = self.model_combo.currentText()
         lang = self.lang_edit.text().strip()
         self.cfg.transcription.language = lang if lang else None
+        self.cfg.transcription.live_transcription = self.live_transcription_check.isChecked()
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
@@ -801,6 +833,11 @@ class LiveScribeWindow(QWidget):
 
         self._transcript_text = ""
 
+        # ── Live transcription state ───────────────────────────────────
+        self._live_thread: threading.Thread | None = None
+        self._live_stop = threading.Event()
+        self._live_frame_cursor: int = 0
+
         # ── Session history (in-memory) ────────────────────────────────
         # Each entry: {"audio": np.ndarray, "transcript": str, "summary": str,
         #              "timestamp": str, "duration": float}
@@ -858,12 +895,13 @@ class LiveScribeWindow(QWidget):
         # ── Custom title bar ───────────────────────────────────────────
         title_bar = QWidget()
         title_bar.setObjectName("titleBar")
-        title_bar.setFixedHeight(40)
+        title_bar.setFixedHeight(44)
         tb_layout = QHBoxLayout(title_bar)
-        tb_layout.setContentsMargins(12, 0, 4, 0)
+        tb_layout.setContentsMargins(14, 0, 4, 0)
 
-        title_label = QLabel("LiveScribe")
+        title_label = QLabel("Live<span style='color: #f38ba8;'>Scribe</span>")
         title_label.setObjectName("titleLabel")
+        title_label.setTextFormat(Qt.TextFormat.RichText)
         tb_layout.addWidget(title_label)
 
         tb_layout.addStretch()
@@ -1172,11 +1210,18 @@ class LiveScribeWindow(QWidget):
             self.btn_summarize.setEnabled(False)
             self.btn_play.setEnabled(False)
             self.btn_save_wav.setEnabled(False)
+
+            # Start live transcription if enabled
+            if self.cfg.transcription.live_transcription:
+                self._start_live_transcription()
         except Exception as exc:
             self.status_label.setText(f"Mic error: {exc}")
 
     def _stop_recording(self):
         try:
+            # Stop live transcription first
+            self._stop_live_transcription()
+
             self.recorder.stop()
             self.record_btn.set_recording(False)
             self._timer.stop()
@@ -1188,19 +1233,26 @@ class LiveScribeWindow(QWidget):
             audio = self.recorder.get_audio().copy()
             entry = {
                 "audio": audio,
-                "transcript": "",
+                "transcript": self._transcript_text,
                 "summary": "",
                 "timestamp": datetime.datetime.now().strftime("%H:%M"),
                 "duration": self.recorder.duration_seconds,
             }
             self._history.append(entry)
             self._history_idx = len(self._history) - 1
-            self._transcript_text = ""
-            self.transcript_section.clear()
+
+            # Preserve live transcript if we have one, otherwise clear
+            if not self._transcript_text:
+                self.transcript_section.clear()
             self.summary_section.clear()
 
-            self.status_label.setText(f"Recorded {mins}:{secs:02d} — session {self._history_idx + 1}")
+            has_live = bool(self._transcript_text)
+            status = f"Recorded {mins}:{secs:02d} — session {self._history_idx + 1}"
+            if has_live:
+                status += " (live transcript ready)"
+            self.status_label.setText(status)
             self.btn_transcribe.setEnabled(True)
+            self.btn_summarize.setEnabled(has_live)
             self.btn_play.setEnabled(True)
             self.btn_save_wav.setEnabled(True)
             self._hist_update_nav()
@@ -1212,6 +1264,78 @@ class LiveScribeWindow(QWidget):
         secs = int(self.recorder.duration_seconds)
         mins, secs = divmod(secs, 60)
         self.timer_label.setText(f"{mins:02d}:{secs:02d}")
+
+    # ── Live transcription ─────────────────────────────────────────────────
+
+    def _start_live_transcription(self):
+        """Begin streaming transcription on a background thread while recording."""
+        self._live_stop.clear()
+        self._live_frame_cursor = 0
+        self._transcript_text = ""
+        self.transcript_section.clear()
+        self.transcript_section.expand()
+        self.status_label.setText("Recording… (loading transcription model)")
+
+        def _live_worker():
+            import numpy as np
+
+            # Pre-load the Whisper model before entering the loop
+            try:
+                self.transcriber._ensure_local_model()
+                self._sig_segment.emit("[Live transcription active]")
+            except Exception as exc:
+                self._sig_segment.emit(f"[Live transcription error: {exc}]")
+                return
+
+            interval = 8  # seconds between transcription passes
+            overlap_seconds = 3  # overlap with previous chunk for continuity
+            sample_rate = self.recorder._mic_rate
+            overlap_frames = int(overlap_seconds * sample_rate)
+            prev_tail: np.ndarray | None = None
+
+            while not self._live_stop.wait(timeout=interval):
+                # Grab new mic frames since last cursor
+                with self.recorder._lock:
+                    frames = list(self.recorder._mic_frames[self._live_frame_cursor:])
+                    self._live_frame_cursor = len(self.recorder._mic_frames)
+
+                if not frames:
+                    continue
+
+                chunk = np.concatenate(frames)
+                if chunk.ndim > 1:
+                    chunk = chunk[:, 0]
+
+                # Prepend overlap from previous chunk for continuity
+                if prev_tail is not None:
+                    chunk = np.concatenate([prev_tail, chunk])
+
+                # Save tail for next overlap
+                if chunk.size > overlap_frames:
+                    prev_tail = chunk[-overlap_frames:].copy()
+                else:
+                    prev_tail = chunk.copy()
+
+                # Resample to 16 kHz if needed
+                if sample_rate != 16000:
+                    target_len = int(len(chunk) * 16000 / sample_rate)
+                    indices = np.linspace(0, len(chunk) - 1, target_len)
+                    chunk = np.interp(indices, np.arange(len(chunk)), chunk).astype(np.float32)
+
+                text = self.transcriber.transcribe_live_chunk(chunk, 16000)
+                if text:
+                    self._sig_segment.emit(text)
+                    self._transcript_text += ("\n" if self._transcript_text else "") + text
+
+        self._live_thread = threading.Thread(target=_live_worker, daemon=True)
+        self._live_thread.start()
+
+    def _stop_live_transcription(self):
+        """Signal the live transcription thread to stop and wait for it."""
+        if self._live_thread is not None:
+            self._live_stop.set()
+            self._live_thread.join(timeout=5)
+            self._live_thread = None
 
     # ── Transcription ──────────────────────────────────────────────────────
 

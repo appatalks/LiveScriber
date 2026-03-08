@@ -69,6 +69,30 @@ class Transcriber:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
+    def transcribe_live_chunk(self, audio: np.ndarray, sample_rate: int = 16_000) -> str:
+        """Transcribe a short audio chunk for live streaming. Always in-process."""
+        if audio.size < sample_rate * 2:  # skip chunks under 2 seconds
+            return ""
+
+        # Skip near-total silence
+        peak = np.max(np.abs(audio))
+        if peak < 0.002:
+            return ""
+
+        self._ensure_local_model()
+        try:
+            segments, _ = self._local_model.transcribe(
+                audio,
+                beam_size=3,  # balance speed vs accuracy for live
+                language=self.cfg.language,
+                vad_filter=False,  # we pre-filter silence; let Whisper see everything
+            )
+            parts = [s.text.strip() for s in segments if s.text.strip()]
+            return " ".join(parts)
+        except Exception as exc:
+            print(f"[Transcriber/live] {exc}")
+            return ""
+
     def transcribe_file(
         self,
         audio_path: Path | str,

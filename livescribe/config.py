@@ -33,18 +33,19 @@ class TranscriptionConfig:
     beam_size: int = 5
     vad_filter: bool = False         # voice-activity-detection filter (can drop quiet audio)
     chunk_minutes: int = 10          # split long recordings into chunks of this size
+    live_transcription: bool = False  # transcribe while recording (streams rough draft)
 
 
 @dataclass
 class SummarizerConfig:
-    backend: str = "copilot"          # copilot | local | ollama-like | openai
+    backend: str = "local"            # copilot | local | ollama-like | openai
     # Copilot CLI settings (uses copilot --prompt)
     copilot_model: str = "claude-sonnet-4.5"
     # Ollama settings
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
     # Embedded local llama.cpp settings
-    local_model_key: str = "gemma-2-2b-it"
+    local_model_key: str = "mistral-nemo-12b-instruct"
     local_context_window: int = 8192
     local_max_tokens: int = 768
     local_temperature: float = 0.2
