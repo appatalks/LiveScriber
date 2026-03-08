@@ -221,6 +221,7 @@ QWidget {
 }
 """
 
-
 def get_theme(name: str = "dark") -> str:
-    return LIGHT_THEME if name == "light" else DARK_THEME
+    if name == "light":
+        return LIGHT_THEME
+    return DARK_THEME

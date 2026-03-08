@@ -36,6 +36,9 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QLineEdit,
     QGroupBox,
+    QSpinBox,
+    QTabWidget,
+    QScrollArea,
 )
 
 from livescribe.config import AppConfig
@@ -43,6 +46,38 @@ from livescribe.recorder import Recorder
 from livescribe.transcriber import Transcriber
 from livescribe.summarizer import Summarizer
 from livescribe.styles import get_theme
+
+
+def _resolve_assets_dir() -> Path | None:
+    """Return the bundled assets directory when available."""
+    candidates: list[Path] = []
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "assets")
+
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.append(exe_dir / "assets")
+        candidates.append(exe_dir / "_internal" / "assets")
+
+    candidates.append(Path(__file__).resolve().parent.parent / "assets")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def _resolve_app_icon_path() -> Path | None:
+    """Return the bundled app icon path when available."""
+    assets_dir = _resolve_assets_dir()
+    if not assets_dir:
+        return None
+
+    candidate = assets_dir / "livescribe.ico"
+    return candidate if candidate.exists() else None
 
 
 class RecordButton(QPushButton):
@@ -134,14 +169,42 @@ class CollapsibleSection(QWidget):
 class SettingsDialog(QDialog):
     """Settings dialog with key user-facing options."""
 
+    _sig_local_model_downloaded = pyqtSignal(str)
+    _sig_local_model_download_failed = pyqtSignal(str)
+
+    _sig_update_result = pyqtSignal(str)
+
     def __init__(self, config: AppConfig, parent=None):
         super().__init__(parent)
         self.cfg = config
         self.setWindowTitle("LiveScribe Settings")
-        self.setMinimumWidth(380)
+        self.setMinimumWidth(440)
+        self.setMinimumHeight(520)
+        self._downloading_local_model = False
 
-        layout = QVBoxLayout(self)
+        icon_path = _resolve_app_icon_path()
+        if icon_path:
+            self.setWindowIcon(QIcon(str(icon_path)))
+
+        self._sig_local_model_downloaded.connect(self._on_local_model_downloaded)
+        self._sig_local_model_download_failed.connect(self._on_local_model_download_failed)
+        self._sig_update_result.connect(self._on_update_result)
+
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setSpacing(8)
+
+        self._tabs = QTabWidget()
+        outer_layout.addWidget(self._tabs)
+
+        # ── Settings tab ──────────────────────────────────────────────
+        settings_scroll = QScrollArea()
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        settings_widget = QWidget()
+        layout = QVBoxLayout(settings_widget)
         layout.setSpacing(12)
+        settings_scroll.setWidget(settings_widget)
+        self._tabs.addTab(settings_scroll, "Settings")
 
         # ── Transcription settings ─────────────────────────────────────
         tx_group = QGroupBox("Transcription")
@@ -165,19 +228,10 @@ class SettingsDialog(QDialog):
         sum_form = QFormLayout(sum_group)
 
         self.sum_backend_combo = QComboBox()
-        self.sum_backend_combo.addItems(["copilot", "ollama", "openai"])
-        self.sum_backend_combo.setCurrentText(config.summarizer.backend)
+        self.sum_backend_combo.addItems(["copilot", "local", "ollama-like", "openai"])
+        self.sum_backend_combo.setCurrentText(Summarizer.normalize_backend_name(config.summarizer.backend))
         self.sum_backend_combo.currentTextChanged.connect(self._on_backend_changed)
         sum_form.addRow("Backend:", self.sum_backend_combo)
-
-        self.copilot_model_combo = QComboBox()
-        self.copilot_model_combo.addItems([
-            "claude-sonnet-4.5", "claude-sonnet-4", "claude-haiku-4.5",
-            "gpt-5", "gpt-5.1", "gpt-5.1-codex-mini", "gpt-5.1-codex",
-            "gemini-3-pro-preview",
-        ])
-        self.copilot_model_combo.setCurrentText(config.summarizer.copilot_model)
-        sum_form.addRow("Copilot model:", self.copilot_model_combo)
 
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setPlainText(config.summarizer.system_prompt)
@@ -186,9 +240,67 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(sum_group)
 
-        # ── Local server (Ollama / LM Studio) ────────────────────────
-        local_group = QGroupBox("Local Server (Ollama / LM Studio)")
-        local_form = QFormLayout(local_group)
+        self.copilot_group = QGroupBox("Copilot")
+        copilot_form = QFormLayout(self.copilot_group)
+
+        self.copilot_model_combo = QComboBox()
+        self.copilot_model_combo.addItems([
+            "claude-sonnet-4.5", "claude-sonnet-4", "claude-haiku-4.5",
+            "gpt-5", "gpt-5.1", "gpt-5.1-codex-mini", "gpt-5.1-codex",
+            "gemini-3-pro-preview",
+        ])
+        self.copilot_model_combo.setCurrentText(config.summarizer.copilot_model)
+        copilot_form.addRow("Model:", self.copilot_model_combo)
+
+        copilot_auth_row = QHBoxLayout()
+        self.copilot_auth_label = QLabel("Launch Copilot CLI login from here if needed.")
+        self.copilot_auth_label.setWordWrap(True)
+        copilot_auth_row.addWidget(self.copilot_auth_label, stretch=1)
+
+        self.copilot_login_btn = QPushButton("Login")
+        self.copilot_login_btn.setFixedWidth(70)
+        self.copilot_login_btn.clicked.connect(self._launch_copilot_login)
+        copilot_auth_row.addWidget(self.copilot_login_btn)
+        copilot_form.addRow("Auth:", copilot_auth_row)
+
+        layout.addWidget(self.copilot_group)
+
+        # ── Embedded local model ─────────────────────────────────────
+        self.embedded_group = QGroupBox("Embedded Local Summarizer")
+        embedded_form = QFormLayout(self.embedded_group)
+
+        self.local_model_combo = QComboBox()
+        self._local_model_options = Summarizer.get_local_model_options()
+        for key, label in self._local_model_options.items():
+            self.local_model_combo.addItem(label, key)
+        local_index = self.local_model_combo.findData(config.summarizer.local_model_key)
+        if local_index >= 0:
+            self.local_model_combo.setCurrentIndex(local_index)
+        self.local_model_combo.currentIndexChanged.connect(self._refresh_local_model_status)
+        embedded_form.addRow("Model:", self.local_model_combo)
+
+        self.local_context_spin = QSpinBox()
+        self.local_context_spin.setRange(2048, 32768)
+        self.local_context_spin.setSingleStep(1024)
+        self.local_context_spin.setValue(config.summarizer.local_context_window)
+        self.local_context_spin.setSuffix(" tokens")
+        embedded_form.addRow("Context window:", self.local_context_spin)
+
+        local_action_row = QHBoxLayout()
+        self.local_model_status = QLabel("")
+        self.local_model_status.setWordWrap(True)
+        local_action_row.addWidget(self.local_model_status, stretch=1)
+
+        self.local_download_btn = QPushButton("Download")
+        self.local_download_btn.clicked.connect(self._download_local_model)
+        local_action_row.addWidget(self.local_download_btn)
+        embedded_form.addRow("Status:", local_action_row)
+
+        layout.addWidget(self.embedded_group)
+
+        # ── Local server (Ollama-like / LM Studio) ───────────────────
+        self.local_server_group = QGroupBox("Ollama-Like Server")
+        local_form = QFormLayout(self.local_server_group)
 
         self.ollama_url_edit = QLineEdit(config.summarizer.ollama_url)
         self.ollama_url_edit.setPlaceholderText("http://localhost:11434")
@@ -209,18 +321,18 @@ class SettingsDialog(QDialog):
         ollama_row.addWidget(self.fetch_btn)
         local_form.addRow("Model:", ollama_row)
 
-        layout.addWidget(local_group)
+        layout.addWidget(self.local_server_group)
 
         # ── API Keys ──────────────────────────────────────────────────
-        keys_group = QGroupBox("API Keys")
-        keys_form = QFormLayout(keys_group)
+        self.openai_group = QGroupBox("API Keys")
+        keys_form = QFormLayout(self.openai_group)
 
         self.openai_key_edit = QLineEdit(config.summarizer.openai_api_key)
         self.openai_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.openai_key_edit.setPlaceholderText("sk-... (for OpenAI backend)")
         keys_form.addRow("OpenAI key:", self.openai_key_edit)
 
-        layout.addWidget(keys_group)
+        layout.addWidget(self.openai_group)
 
         # ── Audio settings ─────────────────────────────────────────────
         audio_group = QGroupBox("Audio")
@@ -239,7 +351,13 @@ class SettingsDialog(QDialog):
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(["dark", "light"])
         self.theme_combo.setCurrentText(config.ui.theme)
-        ui_form.addRow("Theme:", self.theme_combo)
+
+        theme_row = QHBoxLayout()
+        theme_row.addWidget(self.theme_combo)
+        self._theme_pro_label = QLabel("")
+        theme_row.addWidget(self._theme_pro_label)
+        ui_form.addRow("Theme:", theme_row)
+        self._refresh_theme_lock()
 
         self.on_top_check = QCheckBox("Always on top")
         self.on_top_check.setChecked(config.ui.always_on_top)
@@ -252,13 +370,130 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(ui_group)
 
+        # ── About tab ─────────────────────────────────────────────────
+        about_widget = QWidget()
+        about_layout = QVBoxLayout(about_widget)
+        about_layout.setSpacing(12)
+
+        import livescribe
+        version = livescribe.__version__
+
+        project_group = QGroupBox("About LiveScribe")
+        project_form = QFormLayout(project_group)
+
+        project_form.addRow("Version:", QLabel(version))
+        project_form.addRow("Author:", QLabel("appatalks"))
+
+        repo_label = QLabel('<a href="https://github.com/appatalks/LiveScribe">github.com/appatalks/LiveScribe</a>')
+        repo_label.setOpenExternalLinks(True)
+        project_form.addRow("Repository:", repo_label)
+
+        project_form.addRow("License:", QLabel("MIT"))
+
+        desc_label = QLabel(
+            "A floating desktop app that records, transcribes, and summarizes "
+            "your spoken audio into organized notes."
+        )
+        desc_label.setWordWrap(True)
+        project_form.addRow(desc_label)
+
+        about_layout.addWidget(project_group)
+
+        # ── Check for updates ─────────────────────────────────────────
+        update_group = QGroupBox("Updates")
+        update_form = QFormLayout(update_group)
+
+        self._update_status = QLabel(f"Current version: {version}")
+        self._update_status.setWordWrap(True)
+        update_form.addRow(self._update_status)
+
+        self._check_update_btn = QPushButton("Check for Updates")
+        self._check_update_btn.clicked.connect(self._check_for_updates)
+        update_form.addRow(self._check_update_btn)
+
+        about_layout.addWidget(update_group)
+
+        # ── Support ───────────────────────────────────────────────────
+        support_group = QGroupBox("Support LiveScribe")
+        support_form = QFormLayout(support_group)
+
+        support_msg = QLabel(
+            "LiveScribe is freeware and open source. If it's useful to you, "
+            "please consider supporting development. Activate all features for free below."
+        )
+        support_msg.setWordWrap(True)
+        support_form.addRow(support_msg)
+
+        btc_addr = "16CowvxvLSR4BPEP9KJZiR622UU7hGEce5"
+        btc_label = QLabel(btc_addr)
+        btc_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
+        copy_btc_btn = QPushButton("Copy")
+        copy_btc_btn.setFixedWidth(60)
+        copy_btc_btn.clicked.connect(
+            lambda: (
+                QApplication.clipboard().setText(btc_addr),
+                QMessageBox.information(self, "Copied", "Bitcoin address copied to clipboard."),
+            )
+        )
+        btc_row = QHBoxLayout()
+        btc_row.addWidget(btc_label, stretch=1)
+        btc_row.addWidget(copy_btc_btn)
+        support_form.addRow("Bitcoin:", btc_row)
+
+        eth_addr = "0xf75278bd6e2006e6ef4847c9a9293e509ab815c5"
+        eth_label = QLabel(eth_addr)
+        eth_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
+        copy_eth_btn = QPushButton("Copy")
+        copy_eth_btn.setFixedWidth(60)
+        copy_eth_btn.clicked.connect(
+            lambda: (
+                QApplication.clipboard().setText(eth_addr),
+                QMessageBox.information(self, "Copied", "Ethereum address copied to clipboard."),
+            )
+        )
+        eth_row = QHBoxLayout()
+        eth_row.addWidget(eth_label, stretch=1)
+        eth_row.addWidget(copy_eth_btn)
+        support_form.addRow("Ethereum:", eth_row)
+
+        about_layout.addWidget(support_group)
+
+        # ── Pro Registration ──────────────────────────────────────────
+        pro_group = QGroupBox("Pro Registration")
+        pro_form = QFormLayout(pro_group)
+
+        if config.license.registered and config.license.license_key:
+            masked = config.license.license_key[:4] + "****" + config.license.license_key[-4:]
+            self._pro_status = QLabel(f"✓ Registered — {masked}")
+        else:
+            self._pro_status = QLabel("Not yet activated.")
+        self._pro_status.setWordWrap(True)
+        pro_form.addRow("Status:", self._pro_status)
+
+        self._activate_btn = QPushButton("Activate All Features")
+        self._activate_btn.clicked.connect(self._activate_free)
+        pro_form.addRow(self._activate_btn)
+
+        about_layout.addWidget(pro_group)
+        about_layout.addStretch()
+
+        self._tabs.addTab(about_widget, "About")
+
         # ── Buttons ────────────────────────────────────────────────────
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        outer_layout.addWidget(buttons)
+
+        self._on_backend_changed(self.sum_backend_combo.currentText())
 
     def _save(self):
         """Apply settings to config and persist."""
@@ -268,6 +503,8 @@ class SettingsDialog(QDialog):
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
+        self.cfg.summarizer.local_model_key = self.local_model_combo.currentData()
+        self.cfg.summarizer.local_context_window = self.local_context_spin.value()
         self.cfg.summarizer.system_prompt = self.prompt_edit.toPlainText().strip()
         self.cfg.summarizer.ollama_url = self.ollama_url_edit.text().strip()
         self.cfg.summarizer.ollama_model = self.ollama_model_combo.currentText().strip()
@@ -275,7 +512,8 @@ class SettingsDialog(QDialog):
 
         self.cfg.audio.capture_system_audio = self.capture_sys.isChecked()
 
-        self.cfg.ui.theme = self.theme_combo.currentText()
+        if self.theme_combo.isEnabled():
+            self.cfg.ui.theme = self.theme_combo.currentText()
         self.cfg.ui.always_on_top = self.on_top_check.isChecked()
         self.cfg.ui.opacity = self.opacity_slider.value() / 100.0
 
@@ -284,7 +522,99 @@ class SettingsDialog(QDialog):
 
     def _on_backend_changed(self, backend: str):
         """Show/hide relevant fields based on backend selection."""
-        pass  # all fields visible for now
+        is_copilot = backend == "copilot"
+        is_local = backend == "local"
+        is_ollama_like = backend == "ollama-like"
+        is_openai = backend == "openai"
+        self.copilot_group.setVisible(is_copilot)
+        self.copilot_model_combo.setEnabled(is_copilot)
+        self.copilot_auth_label.setEnabled(is_copilot)
+        self.copilot_login_btn.setEnabled(is_copilot)
+        self.embedded_group.setVisible(is_local)
+        self.local_model_combo.setEnabled(is_local and not self._downloading_local_model)
+        self.local_context_spin.setEnabled(is_local)
+        self.local_model_status.setEnabled(is_local)
+        self.local_download_btn.setEnabled(is_local and not self._downloading_local_model)
+        self.local_server_group.setVisible(is_ollama_like)
+        self.openai_group.setVisible(is_openai)
+        self.openai_key_edit.setEnabled(is_openai)
+        self._refresh_local_model_status()
+
+    def _launch_copilot_login(self):
+        """Start the Copilot CLI login flow from the settings dialog."""
+        ok, message = Summarizer.launch_copilot_login()
+        if ok:
+            QMessageBox.information(
+                self,
+                "Copilot Login",
+                message + "\n\nFinish login there, then come back and try summarizing again.",
+            )
+        else:
+            QMessageBox.warning(self, "Copilot Login", message)
+
+    def _refresh_local_model_status(self):
+        """Refresh the embedded model availability label and button text."""
+        model_key = self.local_model_combo.currentData()
+        if not model_key:
+            self.local_model_status.setText("Select a local model.")
+            self.local_download_btn.setText("Download")
+            return
+
+        downloaded = Summarizer.is_local_model_downloaded(model_key)
+        runtime_ready = Summarizer.has_local_runtime()
+        if self._downloading_local_model:
+            self.local_model_status.setText("Downloading model into ~/.livescribe/models…")
+            self.local_download_btn.setText("Downloading…")
+            return
+
+        if downloaded and runtime_ready:
+            self.local_model_status.setText("Model downloaded and ready for local summarization.")
+            self.local_download_btn.setText("Re-download")
+        elif downloaded:
+            self.local_model_status.setText(
+                "Model downloaded, but llama-cpp-python is not installed in this environment yet."
+            )
+            self.local_download_btn.setText("Re-download")
+        else:
+            self.local_model_status.setText("Model not downloaded yet.")
+            self.local_download_btn.setText("Download")
+
+    def _download_local_model(self):
+        """Download the selected embedded local summarizer model in a background thread."""
+        model_key = self.local_model_combo.currentData()
+        if not model_key:
+            QMessageBox.warning(self, "Local Model", "Choose a local model first.")
+            return
+
+        self._downloading_local_model = True
+        self._on_backend_changed(self.sum_backend_combo.currentText())
+
+        import threading
+
+        def _worker():
+            try:
+                Summarizer.download_local_model(model_key)
+                self._sig_local_model_downloaded.emit(model_key)
+            except Exception as exc:
+                self._sig_local_model_download_failed.emit(str(exc))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @pyqtSlot(str)
+    def _on_local_model_downloaded(self, model_key: str):
+        """Handle successful embedded local model download."""
+        self._downloading_local_model = False
+        self._on_backend_changed(self.sum_backend_combo.currentText())
+        self._refresh_local_model_status()
+        QMessageBox.information(self, "Local Model", "Local model download complete.")
+
+    @pyqtSlot(str)
+    def _on_local_model_download_failed(self, error: str):
+        """Handle embedded local model download failure."""
+        self._downloading_local_model = False
+        self._on_backend_changed(self.sum_backend_combo.currentText())
+        self._refresh_local_model_status()
+        QMessageBox.warning(self, "Local Model", f"Download failed:\n{error}")
 
     def _fetch_models(self):
         """Fetch available models from the local server."""
@@ -330,6 +660,99 @@ class SettingsDialog(QDialog):
         else:
             QMessageBox.warning(self, "Fetch Models", f"Could not connect to {url}")
 
+    # ── About tab helpers ──────────────────────────────────────────────────
+
+    def _check_for_updates(self):
+        """Check GitHub releases for a newer version in a background thread."""
+        self._check_update_btn.setEnabled(False)
+        self._check_update_btn.setText("Checking…")
+        self._update_status.setText("Checking for updates…")
+
+        import threading
+
+        def _worker():
+            try:
+                import requests
+                resp = requests.get(
+                    "https://api.github.com/repos/appatalks/LiveScribe/releases/latest",
+                    timeout=10,
+                    headers={"Accept": "application/vnd.github.v3+json"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    latest = data.get("tag_name", "").lstrip("v")
+                    import livescribe
+                    current = livescribe.__version__
+                    if latest and latest != current:
+                        self._sig_update_result.emit(
+                            f"New version available: {latest} (you have {current})\n"
+                            f"Download: {data.get('html_url', '')}"
+                        )
+                    else:
+                        self._sig_update_result.emit(f"You are up to date (v{current}).")
+                elif resp.status_code == 404:
+                    self._sig_update_result.emit("No releases found yet.")
+                else:
+                    self._sig_update_result.emit(f"GitHub returned status {resp.status_code}.")
+            except Exception as exc:
+                self._sig_update_result.emit(f"Update check failed: {exc}")
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @pyqtSlot(str)
+    def _on_update_result(self, message: str):
+        """Handle the result of the update check."""
+        self._update_status.setText(message)
+        self._check_update_btn.setEnabled(True)
+        self._check_update_btn.setText("Check for Updates")
+
+    @staticmethod
+    def _generate_license_key() -> str:
+        """Generate a valid LiveScribe license key."""
+        import hashlib
+        import secrets
+        import string
+        charset = string.ascii_uppercase + string.digits
+        groups = ["".join(secrets.choice(charset) for _ in range(4)) for _ in range(3)]
+        payload = "-".join(groups)
+        checksum = hashlib.sha256(
+            ("LiveScribePro:" + payload).encode()
+        ).hexdigest()[:4].upper()
+        return f"{payload}-{checksum}"
+
+    def _activate_free(self):
+        """Generate a key, activate it, and unlock all features in one click."""
+        if self.cfg.license.registered and self.cfg.license.license_key:
+            QMessageBox.information(self, "Already Activated", "All features are already activated.")
+            return
+
+        key = self._generate_license_key()
+        self.cfg.license.license_key = key
+        self.cfg.license.registered = True
+        self.cfg.save()
+
+        masked = key[:4] + "****" + key[-4:]
+        self._pro_status.setText(f"✓ Activated — {masked}")
+        self._activate_btn.setText("Activated ✓")
+        self._activate_btn.setEnabled(False)
+        self._refresh_theme_lock()
+        QMessageBox.information(
+            self, "Activated",
+            "All features are now unlocked!\n\n"
+            "If LiveScribe is useful to you, please consider "
+            "supporting development with a donation. Thank you!",
+        )
+
+    def _refresh_theme_lock(self):
+        """Enable or disable theme selection based on activation status."""
+        is_active = self.cfg.license.registered and bool(self.cfg.license.license_key)
+        self.theme_combo.setEnabled(is_active)
+        if is_active:
+            self._theme_pro_label.setText("")
+        else:
+            self._theme_pro_label.setText("<i>Activate to unlock</i>")
+            self.theme_combo.setCurrentText("dark")
+
 
 class LiveScribeWindow(QWidget):
     """Main floating window."""
@@ -345,6 +768,10 @@ class LiveScribeWindow(QWidget):
         super().__init__()
         self.cfg = config
         self._drag_pos: QPoint | None = None
+
+        icon_path = _resolve_app_icon_path()
+        if icon_path:
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         # ── Backend components ─────────────────────────────────────────
         self.recorder = Recorder(config.audio)
@@ -806,6 +1233,9 @@ class LiveScribeWindow(QWidget):
     @pyqtSlot(str)
     def _on_transcription_done(self, text: str):
         self._transcript_text = text
+        self.transcript_section.set_text(text)
+        if text:
+            self.transcript_section.expand()
         self.btn_transcribe.setEnabled(True)
         self.btn_summarize.setEnabled(True)
         self.status_label.setText("Transcription complete")
@@ -838,8 +1268,13 @@ class LiveScribeWindow(QWidget):
     @pyqtSlot(str)
     def _on_summary_done(self, summary: str):
         self.summary_section.set_text(summary)
+        if summary:
+            self.summary_section.expand()
         self.btn_summarize.setEnabled(True)
-        self.status_label.setText("Summary ready")
+        if summary.startswith("[") and "error" in summary.lower():
+            self.status_label.setText("Summary error")
+        else:
+            self.status_label.setText("Summary ready")
         # Auto-save current session to history
         self._hist_save_current()
 
@@ -1061,16 +1496,12 @@ class LiveScribeWindow(QWidget):
 
     @pyqtSlot()
     def _save_markdown(self):
-        """Save transcript and summary as a Markdown file."""
+        """Save the generated summary as a Markdown file."""
         import datetime
 
         parts: list[str] = []
         ts = datetime.datetime.now()
         parts.append(f"# LiveScribe Notes — {ts.strftime('%B %d, %Y %H:%M')}\n")
-
-        if self._transcript_text:
-            parts.append("## Transcript\n")
-            parts.append(self._transcript_text + "\n")
 
         summary = self.summary_section.content.toPlainText()
         if summary:
@@ -1138,6 +1569,10 @@ def run_app(config: AppConfig | None = None):
 
     app = QApplication(sys.argv)
     app.setApplicationName("LiveScribe")
+
+    icon_path = _resolve_app_icon_path()
+    if icon_path:
+        app.setWindowIcon(QIcon(str(icon_path)))
 
     window = LiveScribeWindow(config)
     window.show()

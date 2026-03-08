@@ -18,6 +18,45 @@ ok()    { echo -e "${GREEN}[OK]${NC}    $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 
+install_local_runtime() {
+    info "Installing embedded local summarization runtime..."
+
+    if pip install --prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu llama-cpp-python -q; then
+        ok "Embedded local summarization runtime installed"
+        return
+    fi
+
+    warn "Prebuilt llama.cpp wheel was not available. Attempting a local build setup..."
+
+    if [[ "$(uname)" == "Linux" ]]; then
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq build-essential cmake
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y gcc-c++ make cmake
+        elif command -v pacman &>/dev/null; then
+            sudo pacman -S --noconfirm base-devel cmake
+        else
+            warn "Could not detect a supported Linux package manager for compiler tool installation"
+        fi
+    elif [[ "$(uname)" == "Darwin" ]]; then
+        if ! xcode-select -p &>/dev/null; then
+            warn "Xcode Command Line Tools are required to build llama-cpp-python"
+            xcode-select --install || true
+        fi
+        if command -v brew &>/dev/null; then
+            brew install cmake || true
+        fi
+    fi
+
+    if pip install llama-cpp-python -q; then
+        ok "Embedded local summarization runtime installed"
+        return
+    fi
+
+    warn "Could not install llama-cpp-python automatically. LiveScribe will still work, but the embedded local summarizer will remain unavailable until its runtime is installed."
+}
+
 # ── Check Python ───────────────────────────────────────────────────────────
 PYTHON=""
 for cmd in python3.12 python3.11 python3.10 python3; do
@@ -85,6 +124,8 @@ pip install --upgrade pip -q
 
 info "Installing LiveScribe…"
 pip install -e "$PROJECT_DIR" -q
+
+install_local_runtime
 
 ok "Installation complete!"
 

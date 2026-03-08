@@ -170,11 +170,14 @@ class Recorder:
     # ── System audio capture ──────────────────────────────────────────────
 
     def _start_system_capture(self) -> None:
-        """Capture system audio output. Uses parec on Linux, BlackHole on macOS."""
+        """Capture system audio output on the current platform."""
         import platform
 
-        if platform.system() == "Darwin":
+        system = platform.system()
+        if system == "Darwin":
             self._start_system_capture_macos()
+        elif system == "Windows":
+            self._start_system_capture_windows()
         else:
             self._start_system_capture_linux()
 
@@ -246,8 +249,54 @@ class Recorder:
             print(f"[Recorder] Failed to open virtual audio device: {exc}")
             self._sys_stream = None
 
+    # ── Windows: WASAPI loopback ───────────────────────────────────────────
+
+    def _start_system_capture_windows(self) -> None:
+        """Capture system audio via a Windows loopback or mixer input device."""
+        if not hasattr(sd, "WasapiSettings"):
+            print("[Recorder] WASAPI support is unavailable in this sounddevice build — mic only")
+            return
+
+        loopback_idx = self._find_windows_loopback_device()
+        if loopback_idx is None:
+            print("[Recorder] No Windows system-audio input found — mic only")
+            print("[Recorder] Enable Stereo Mix or a similar loopback input if your driver provides one")
+            return
+
+        try:
+            dev_info = sd.query_devices(loopback_idx)
+            self._sys_rate = int(dev_info["default_samplerate"])
+            channels = max(1, min(int(dev_info["max_input_channels"]), 2))
+            extra_settings = None
+            hostapi_name = sd.query_hostapis(dev_info["hostapi"])["name"].lower()
+            if "wasapi" in hostapi_name:
+                extra_settings = sd.WasapiSettings(auto_convert=True)
+
+            sd.check_input_settings(
+                device=loopback_idx,
+                samplerate=self._sys_rate,
+                channels=channels,
+                dtype=self.cfg.dtype,
+                extra_settings=extra_settings,
+            )
+
+            self._sys_stream = sd.InputStream(
+                device=loopback_idx,
+                samplerate=self._sys_rate,
+                channels=channels,
+                dtype=self.cfg.dtype,
+                latency="high",
+                extra_settings=extra_settings,
+                callback=self._sys_callback,
+            )
+            self._sys_stream.start()
+            print(f"[Recorder] Capturing system audio: {dev_info['name']} (device {loopback_idx})")
+        except Exception as exc:
+            print(f"[Recorder] Failed to open WASAPI loopback device: {exc}")
+            self._sys_stream = None
+
     def _sys_callback(self, indata: np.ndarray, frames: int, time_info, status):
-        """Callback for macOS system audio stream."""
+        """Callback for platform-specific system audio streams."""
         if status:
             print(f"[Recorder/sys] {status}")
         with self._lock:
@@ -265,6 +314,52 @@ class Recorder:
                 if any(v in name_lower for v in virtual_names):
                     return i
         return None
+
+    @staticmethod
+    def _find_windows_loopback_device() -> int | None:
+        """Find the best Windows system-audio capture input device."""
+        try:
+            devices = sd.query_devices()
+            hostapis = sd.query_hostapis()
+        except Exception:
+            return None
+
+        preferred_names = [
+            "stereo mix",
+            "wave out mix",
+            "what u hear",
+            "loopback",
+            "monitor",
+        ]
+        preferred_hostapis = {
+            "windows wasapi": 30,
+            "windows wdm-ks": 20,
+            "mme": 10,
+        }
+
+        candidates: list[tuple[int, int]] = []
+        for i, device in enumerate(devices):
+            if device["max_input_channels"] <= 0:
+                continue
+
+            hostapi_name = hostapis[device["hostapi"]]["name"].lower()
+            name_lower = device["name"].lower()
+            score = 0
+
+            for term in preferred_names:
+                if term in name_lower:
+                    score += 100
+
+            score += preferred_hostapis.get(hostapi_name, 0)
+
+            if score > 0:
+                candidates.append((score, i))
+
+        if not candidates:
+            return None
+
+        candidates.sort(reverse=True)
+        return candidates[0][1]
 
     def _parec_reader(self) -> None:
         """Read raw float32 audio from parec stdout in chunks."""

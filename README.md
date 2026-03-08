@@ -3,7 +3,7 @@
 A small, floating desktop app that **records**, **transcribes**, and **summarizes** your spoken audio into organized notes — think out loud, troubleshoot problems, capture meetings, or brainstorm ideas and get clean notes automatically.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
@@ -27,7 +27,8 @@ The AI adapts its note format to match whatever you're recording.
 - **One-click recording** — press the red button to capture audio from mic + system audio
 - **Dual audio capture** — records your mic and system output (hear both sides of a call)
 - **Local transcription** — powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) `distil-large-v3` (runs offline, no API key needed)
-- **AI-powered notes** — generates structured summaries via Copilot CLI, Ollama, or OpenAI
+- **AI-powered notes** — generates structured summaries via Copilot CLI, ollama-like local servers, or OpenAI
+- **Embedded local notes** — optional in-app GGUF summarizer with no external server required
 - **Copilot CLI backend** (default) — use Claude, GPT-5, or Gemini through your GitHub Copilot subscription
 - **Editable notes** — click into the Summary section to add your own annotations
 - **Session history** — navigate between past sessions with ◀ ▶ while they're in memory
@@ -45,15 +46,49 @@ The AI adapts its note format to match whatever you're recording.
 
 ### 1. Install
 
+Linux / macOS:
+
 ```bash
 git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
 ./scripts/install.sh
 ```
 
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/appatalks/LiveScribe
+cd LiveScribe
+.\scripts\install.ps1
+```
+
+### Windows Installer Build
+
+If you want a distributable Windows installer instead of a source checkout:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+.\scripts\build_windows_installer.ps1
+```
+
+This builds:
+- a packaged app bundle in `dist\LiveScribe`
+- an installer `.exe` in `dist\installer` when [Inno Setup 6](https://jrsoftware.org/isinfo.php) is installed
+
+If Inno Setup is not installed, the script still builds the app bundle and tells you what is missing.
+
 ### 2. Run
+
+Linux / macOS:
 
 ```bash
 source .venv/bin/activate
+livescribe
+```
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
 livescribe
 ```
 
@@ -61,7 +96,8 @@ livescribe
 
 ```
 livescribe                          # default (Copilot CLI + local Whisper)
-livescribe --backend ollama         # use local LLM server for notes
+livescribe --backend local          # use embedded GGUF summarizer
+livescribe --backend ollama-like    # use a local LLM server for notes
 livescribe --backend openai         # use OpenAI directly (needs API key)
 livescribe --theme light            # light theme
 livescribe --no-on-top              # disable always-on-top
@@ -117,7 +153,21 @@ Available models:
 - `gpt-5`, `gpt-5.1`, `gpt-5.1-codex`
 - `gemini-3-pro-preview`
 
-### Ollama / LM Studio (local, private)
+### Local (embedded — no server required)
+
+Runs directly inside LiveScribe with `llama.cpp` and downloadable GGUF models.
+
+Included presets:
+- `Gemma 2 2B Instruct`
+- `Gemma 2 9B Instruct`
+- `Llama 3.1 ELM Turbo 4B Instruct`
+- `Mistral Nemo 12B Instruct`
+
+Download the selected model from **Settings** when using the `local` backend.
+You can also choose the embedded model and local context window there.
+On Windows, setup now also attempts to install the embedded llama.cpp runtime automatically.
+
+### Ollama-Like / LM Studio (local, private)
 
 ```bash
 # Works with any OpenAI-compatible local server
@@ -152,6 +202,8 @@ Settings are accessible via the **⚙** button in the title bar, or edit `~/.liv
   "summarizer": {
     "backend": "copilot",
     "copilot_model": "claude-sonnet-4.5",
+    "local_model_key": "gemma-2-2b-it",
+    "local_context_window": 8192,
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3"
   },
@@ -186,13 +238,18 @@ LiveScribe/
 │   ├── __init__.py          # Package version
 │   ├── main.py              # CLI entry point & arg parsing
 │   ├── app.py               # PyQt6 floating window UI + settings dialog
-│   ├── recorder.py          # Mic + system audio capture (sounddevice + parec)
+│   ├── recorder.py          # Mic + system audio capture (sounddevice + platform backends)
 │   ├── transcriber.py       # Chunked local Whisper transcription
-│   ├── summarizer.py        # Copilot CLI / Ollama / OpenAI summarization
+│   ├── summarizer.py        # Copilot CLI / local / ollama-like / OpenAI summarization
 │   ├── config.py            # Dataclass config with JSON persistence
 │   └── styles.py            # QSS dark/light themes
 ├── scripts/
-│   └── install.sh           # One-command Linux/macOS setup
+│   ├── install.sh           # One-command Linux/macOS setup
+│   ├── install.ps1          # One-command Windows setup
+│   ├── build_windows_installer.ps1  # Build Windows app bundle + installer
+│   └── windows_launcher.py  # PyInstaller launcher entry point
+├── installer/
+│   └── LiveScribe.iss       # Inno Setup installer definition
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
@@ -206,8 +263,11 @@ LiveScribe/
 - **PortAudio** (for microphone access)
   - Linux: `sudo apt install portaudio19-dev`
   - macOS: `brew install portaudio`
+  - Windows: included with the `sounddevice` wheel used by this project
 - **Copilot CLI** (for default summarization backend — free with Copilot subscription)
-- **Ollama or LM Studio** (optional, for fully local/private operation)
+- **llama-cpp-python** (installed during setup for the embedded local summarization backend when available)
+- **Inno Setup 6** (optional, only if you want to build a Windows installer `.exe`)
+- **Ollama-like server or LM Studio** (optional, for fully local/private operation)
 - **OpenAI API key** (optional, for direct OpenAI backend)
 
 ### System Audio Capture
@@ -223,6 +283,8 @@ brew install blackhole-2ch
 ```
 
 Then open **Audio MIDI Setup** → click **+** → **Create Multi-Output Device** → check both your speakers/headphones and "BlackHole 2ch". Set this as your system output. LiveScribe will automatically detect BlackHole and capture system audio through it.
+
+**Windows** — uses a driver-exposed system-audio input such as `Stereo Mix`, `Wave Out Mix`, or another loopback-style device when available. If your audio driver does not expose one of those inputs, LiveScribe will still record your microphone and continue without system audio.
 
 ---
 
