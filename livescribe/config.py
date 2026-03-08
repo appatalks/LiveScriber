@@ -68,8 +68,8 @@ class SummarizerConfig:
 
 @dataclass
 class UIConfig:
-    window_width: int = 420
-    window_height: int = 620
+    window_width: int = 340
+    window_height: int = 720
     opacity: float = 0.95
     always_on_top: bool = True
     theme: str = "dark"              # dark | light

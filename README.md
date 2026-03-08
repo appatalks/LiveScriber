@@ -1,5 +1,9 @@
 # LiveScribe
 
+<p align="center">
+  <img src="assets/livescribe-banner.png" alt="LiveScribe — Record · Transcribe · Summarize" width="100%">
+</p>
+
 A small, floating desktop app that **records**, **transcribes**, and **summarizes** your spoken audio into organized notes — think out loud, troubleshoot problems, capture meetings, or brainstorm ideas and get clean notes automatically.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
@@ -285,6 +289,18 @@ brew install blackhole-2ch
 Then open **Audio MIDI Setup** → click **+** → **Create Multi-Output Device** → check both your speakers/headphones and "BlackHole 2ch". Set this as your system output. LiveScribe will automatically detect BlackHole and capture system audio through it.
 
 **Windows** — uses a driver-exposed system-audio input such as `Stereo Mix`, `Wave Out Mix`, or another loopback-style device when available. If your audio driver does not expose one of those inputs, LiveScribe will still record your microphone and continue without system audio.
+
+---
+
+## Support
+
+LiveScribe is free and open source. If it's useful to you, consider supporting development:
+
+| Method | Address |
+|--------|---------|
+| **PayPal** | [Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=3KPNXNL6QTZW2) |
+| **Bitcoin** | `16CowvxvLSR4BPEP9KJZiR622UU7hGEce5` |
+| **Ethereum** | `0xf75278bd6e2006e6ef4847c9a9293e509ab815c5` |
 
 ---
 

@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#181825"/>
+      <stop offset="100%" stop-color="#1e1e2e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f38ba8"/>
+      <stop offset="100%" stop-color="#e06688"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f38ba8" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#f38ba8" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="#f38ba8" stop-opacity="0.12"/>
+      <stop offset="80%" stop-color="#cba6f7" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#cba6f7" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softglow">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="400" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <line x1="0" y1="100" x2="1280" y2="100" stroke="#cdd6f4" stroke-width="1"/>
+    <line x1="0" y1="200" x2="1280" y2="200" stroke="#cdd6f4" stroke-width="1"/>
+    <line x1="0" y1="300" x2="1280" y2="300" stroke="#cdd6f4" stroke-width="1"/>
+    <line x1="320" y1="0" x2="320" y2="400" stroke="#cdd6f4" stroke-width="1"/>
+    <line x1="640" y1="0" x2="640" y2="400" stroke="#cdd6f4" stroke-width="1"/>
+    <line x1="960" y1="0" x2="960" y2="400" stroke="#cdd6f4" stroke-width="1"/>
+  </g>
+
+  <!-- Audio waveform decoration (left side) -->
+  <g transform="translate(0, 200)" opacity="0.15">
+    <path d="M0,0 Q40,-60 80,0 Q120,50 160,0 Q200,-40 240,0 Q280,30 320,0 Q360,-20 400,0 Q440,40 480,0 Q520,-50 560,0 Q600,25 640,0 Q680,-35 720,0 Q760,45 800,0 Q840,-30 880,0 Q920,20 960,0 Q1000,-45 1040,0 Q1080,35 1120,0 Q1160,-25 1200,0 Q1240,15 1280,0" fill="none" stroke="#f38ba8" stroke-width="2"/>
+  </g>
+  <g transform="translate(0, 200)" opacity="0.08">
+    <path d="M0,0 Q50,-80 100,0 Q150,70 200,0 Q250,-90 300,0 Q350,60 400,0 Q450,-50 500,0 Q550,80 600,0 Q650,-70 700,0 Q750,40 800,0 Q850,-60 900,0 Q950,50 1000,0 Q1050,-40 1100,0 Q1150,70 1200,0 Q1250,-30 1280,0" fill="none" stroke="#cba6f7" stroke-width="1.5"/>
+  </g>
+
+  <!-- Decorative accent bar (top) -->
+  <rect x="0" y="0" width="1280" height="3" fill="url(#accent)"/>
+
+  <!-- Record button icon -->
+  <g transform="translate(240, 200)" filter="url(#glow)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="52" fill="none" stroke="#585b70" stroke-width="4"/>
+    <!-- Inner glow ring -->
+    <circle cx="0" cy="0" r="48" fill="none" stroke="#f38ba8" stroke-width="2" opacity="0.4"/>
+    <!-- Record dot -->
+    <circle cx="0" cy="0" r="22" fill="url(#accent)"/>
+    <!-- Microphone lines inside the dot -->
+    <g opacity="0.9">
+      <!-- Mic body -->
+      <rect x="-5" y="-12" width="10" height="16" rx="5" fill="#1e1e2e"/>
+      <!-- Mic arc -->
+      <path d="M-9,4 Q-9,14 0,14 Q9,14 9,4" fill="none" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round"/>
+      <!-- Mic stand -->
+      <line x1="0" y1="14" x2="0" y2="18" stroke="#1e1e2e" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- Sound wave rings around record button -->
+  <g transform="translate(240, 200)" opacity="0.12">
+    <circle cx="0" cy="0" r="70" fill="none" stroke="#f38ba8" stroke-width="1.5"/>
+    <circle cx="0" cy="0" r="90" fill="none" stroke="#f38ba8" stroke-width="1" opacity="0.7"/>
+    <circle cx="0" cy="0" r="110" fill="none" stroke="#f38ba8" stroke-width="0.5" opacity="0.4"/>
+  </g>
+
+  <!-- LiveScribe text -->
+  <text x="640" y="175" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="72" font-weight="700" fill="#cdd6f4" letter-spacing="2">
+    Live<tspan fill="#f38ba8">Scribe</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="640" y="225" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="400" fill="#a6adc8" letter-spacing="6">
+    RECORD  ·  TRANSCRIBE  ·  SUMMARIZE
+  </text>
+
+  <!-- Subtitle -->
+  <text x="640" y="272" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="300" fill="#6c7086" letter-spacing="1">
+    Think out loud. Get clean notes automatically.
+  </text>
+
+  <!-- Bottom accent bar -->
+  <rect x="0" y="397" width="1280" height="3" fill="url(#accent)"/>
+
+  <!-- Corner decorations -->
+  <g opacity="0.15">
+    <path d="M0,40 L0,0 L40,0" fill="none" stroke="#f38ba8" stroke-width="2"/>
+    <path d="M1240,0 L1280,0 L1280,40" fill="none" stroke="#f38ba8" stroke-width="2"/>
+    <path d="M0,360 L0,400 L40,400" fill="none" stroke="#f38ba8" stroke-width="2"/>
+    <path d="M1240,400 L1280,400 L1280,360" fill="none" stroke="#f38ba8" stroke-width="2"/>
+  </g>
+</svg>

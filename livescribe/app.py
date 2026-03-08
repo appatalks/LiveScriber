@@ -15,7 +15,7 @@ from PyQt6.QtCore import (
     pyqtSlot,
     QSize,
 )
-from PyQt6.QtGui import QIcon, QPainter, QColor, QFont
+from PyQt6.QtGui import QIcon, QPainter, QColor, QFont, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
@@ -179,7 +179,7 @@ class SettingsDialog(QDialog):
         self.cfg = config
         self.setWindowTitle("LiveScribe Settings")
         self.setMinimumWidth(440)
-        self.setMinimumHeight(520)
+        self.setMinimumHeight(860)
         self._downloading_local_model = False
 
         icon_path = _resolve_app_icon_path()
@@ -423,6 +423,27 @@ class SettingsDialog(QDialog):
         )
         support_msg.setWordWrap(True)
         support_form.addRow(support_msg)
+
+        paypal_row = QHBoxLayout()
+        paypal_qr_label = QLabel()
+        qr_path = _resolve_assets_dir()
+        if qr_path:
+            qr_file = qr_path / "paypal-qr-code.png"
+            if qr_file.exists():
+                pixmap = QPixmap(str(qr_file)).scaled(
+                    80, 80, Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                paypal_qr_label.setPixmap(pixmap)
+        paypal_row.addWidget(paypal_qr_label)
+        paypal_link = QLabel(
+            '<a href="https://www.paypal.com/donate/?hosted_button_id=3KPNXNL6QTZW2"'
+            ' style="font-size: 18px; font-weight: bold;">'
+            'Donate via PayPal</a>'
+        )
+        paypal_link.setOpenExternalLinks(True)
+        paypal_row.addWidget(paypal_link, stretch=1)
+        support_form.addRow("PayPal:", paypal_row)
 
         btc_addr = "16CowvxvLSR4BPEP9KJZiR622UU7hGEce5"
         btc_label = QLabel(btc_addr)
@@ -923,10 +944,12 @@ class LiveScribeWindow(QWidget):
 
         # Transcript section
         self.transcript_section = CollapsibleSection("Transcription", "transcriptArea")
+        self.transcript_section.expand()
         cl.addWidget(self.transcript_section)
 
         # Summary section
-        self.summary_section = CollapsibleSection("Summary & Notes", "summaryArea", editable=True)
+        self.summary_section = CollapsibleSection("Summary && Notes", "summaryArea", editable=True)
+        self.summary_section.expand()
         cl.addWidget(self.summary_section)
 
         # Action buttons

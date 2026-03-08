@@ -21,9 +21,17 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 install_local_runtime() {
     info "Installing embedded local summarization runtime..."
 
+    # The extra-index CPU wheels may ship musl-linked binaries that fail on
+    # glibc systems (Debian, Ubuntu, Fedora, etc.).  Try the extra index
+    # first, then verify the library actually loads.  If it doesn't, fall
+    # back to a source build which compiles against the host libc.
     if pip install --prefer-binary --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu llama-cpp-python -q; then
-        ok "Embedded local summarization runtime installed"
-        return
+        if python -c "import llama_cpp" 2>/dev/null; then
+            ok "Embedded local summarization runtime installed"
+            return
+        fi
+        warn "Prebuilt wheel installed but failed to load (likely musl/glibc mismatch). Rebuilding from source..."
+        pip uninstall llama-cpp-python -y -q
     fi
 
     warn "Prebuilt llama.cpp wheel was not available. Attempting a local build setup..."
