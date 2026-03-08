@@ -64,6 +64,12 @@ class Summarizer:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
+    _LANG_NAMES = {
+        "en": "English", "ko": "Korean", "ja": "Japanese", "uk": "Ukrainian",
+        "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
+        "ar": "Arabic",
+    }
+
     def summarize(self, transcript: str, detected_language: str | None = None,
                   auto_translate_english: bool = False) -> str:
         """Summarize transcript text. Returns the summary string.
@@ -75,16 +81,28 @@ class Summarizer:
         if not transcript.strip():
             return ""
 
+        # Temporarily adjust the system prompt to request output in the right language
+        original_prompt = self.cfg.system_prompt
+        if detected_language and detected_language != "en" and not auto_translate_english:
+            lang_name = self._LANG_NAMES.get(detected_language, detected_language)
+            self.cfg.system_prompt = (
+                f"IMPORTANT: Respond entirely in {lang_name}. "
+                f"Do not use English.\n\n{original_prompt}"
+            )
+
         backend = self.normalize_backend_name(self.cfg.backend)
 
-        if backend == "copilot":
-            summary = self._summarize_copilot(transcript)
-        elif backend == "local":
-            summary = self._summarize_local(transcript)
-        elif backend == "openai":
-            summary = self._summarize_openai(transcript)
-        else:
-            summary = self._summarize_ollama(transcript)
+        try:
+            if backend == "copilot":
+                summary = self._summarize_copilot(transcript)
+            elif backend == "local":
+                summary = self._summarize_local(transcript)
+            elif backend == "openai":
+                summary = self._summarize_openai(transcript)
+            else:
+                summary = self._summarize_ollama(transcript)
+        finally:
+            self.cfg.system_prompt = original_prompt
 
         # Bilingual: append English summary when source isn't English
         if (auto_translate_english

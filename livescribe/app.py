@@ -198,10 +198,15 @@ class SettingsDialog(QDialog):
 
     _sig_update_result = pyqtSignal(str)
 
+    def _t(self, key: str) -> str:
+        """Shorthand for translating a UI string key."""
+        return t(key, self._ui_lang)
+
     def __init__(self, config: AppConfig, parent=None):
         super().__init__(parent)
         self.cfg = config
-        self.setWindowTitle("LiveScribe Settings")
+        self._ui_lang = config.ui.ui_language
+        self.setWindowTitle(self._t("settings_title"))
         self.setMinimumWidth(440)
         self.setMinimumHeight(860)
         self._downloading_local_model = False
@@ -228,10 +233,10 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(settings_widget)
         layout.setSpacing(12)
         settings_scroll.setWidget(settings_widget)
-        self._tabs.addTab(settings_scroll, "Settings")
+        self._tabs.addTab(settings_scroll, self._t("settings"))
 
         # ── Transcription settings ─────────────────────────────────────
-        tx_group = QGroupBox("Transcription")
+        tx_group = QGroupBox(self._t("grp_transcription"))
         tx_form = QFormLayout(tx_group)
 
         self.model_combo = QComboBox()
@@ -239,13 +244,13 @@ class SettingsDialog(QDialog):
             "distil-large-v3", "large-v3", "medium", "small", "base", "tiny",
         ])
         self.model_combo.setCurrentText(config.transcription.model_size)
-        tx_form.addRow("Whisper model:", self.model_combo)
+        tx_form.addRow(self._t("whisper_model"), self.model_combo)
 
         self.lang_edit = QLineEdit(config.transcription.language or "")
-        self.lang_edit.setPlaceholderText("auto-detect (leave empty)")
-        tx_form.addRow("Language:", self.lang_edit)
+        self.lang_edit.setPlaceholderText(self._t("auto_detect"))
+        tx_form.addRow(self._t("language"), self.lang_edit)
 
-        self.live_transcription_check = QCheckBox("Live transcription while recording (experimental)")
+        self.live_transcription_check = QCheckBox(self._t("live_transcription_label"))
         self.live_transcription_check.setChecked(config.transcription.live_transcription)
         self.live_transcription_check.setToolTip(
             "Stream a rough transcription while recording. Results may be incomplete — "
@@ -253,7 +258,7 @@ class SettingsDialog(QDialog):
         )
         tx_form.addRow(self.live_transcription_check)
 
-        self.auto_translate_check = QCheckBox("Auto-translate to English")
+        self.auto_translate_check = QCheckBox(self._t("auto_translate_label"))
         self.auto_translate_check.setChecked(config.transcription.auto_translate_english)
         self.auto_translate_check.setToolTip(
             "When enabled, non-English speech is translated to English during transcription. "
@@ -264,19 +269,19 @@ class SettingsDialog(QDialog):
         layout.addWidget(tx_group)
 
         # ── Summarization settings ─────────────────────────────────────
-        sum_group = QGroupBox("Summarization")
+        sum_group = QGroupBox(self._t("grp_summarization"))
         sum_form = QFormLayout(sum_group)
 
         self.sum_backend_combo = QComboBox()
         self.sum_backend_combo.addItems(["copilot", "local", "ollama-like", "openai"])
         self.sum_backend_combo.setCurrentText(Summarizer.normalize_backend_name(config.summarizer.backend))
         self.sum_backend_combo.currentTextChanged.connect(self._on_backend_changed)
-        sum_form.addRow("Backend:", self.sum_backend_combo)
+        sum_form.addRow(self._t("backend"), self.sum_backend_combo)
 
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setPlainText(config.summarizer.system_prompt)
         self.prompt_edit.setMaximumHeight(100)
-        sum_form.addRow("System prompt:", self.prompt_edit)
+        sum_form.addRow(self._t("system_prompt"), self.prompt_edit)
 
         layout.addWidget(sum_group)
 
@@ -375,17 +380,17 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.openai_group)
 
         # ── Audio settings ─────────────────────────────────────────────
-        audio_group = QGroupBox("Audio")
+        audio_group = QGroupBox(self._t("grp_audio"))
         audio_form = QFormLayout(audio_group)
 
-        self.capture_sys = QCheckBox("Capture system audio (speakers)")
+        self.capture_sys = QCheckBox(self._t("capture_system_audio"))
         self.capture_sys.setChecked(config.audio.capture_system_audio)
         audio_form.addRow(self.capture_sys)
 
         layout.addWidget(audio_group)
 
         # ── UI settings ───────────────────────────────────────────────
-        ui_group = QGroupBox("Appearance")
+        ui_group = QGroupBox(self._t("grp_appearance"))
         ui_form = QFormLayout(ui_group)
 
         self.theme_combo = QComboBox()
@@ -396,17 +401,17 @@ class SettingsDialog(QDialog):
         theme_row.addWidget(self.theme_combo)
         self._theme_pro_label = QLabel("")
         theme_row.addWidget(self._theme_pro_label)
-        ui_form.addRow("Theme:", theme_row)
+        ui_form.addRow(self._t("theme"), theme_row)
         self._refresh_theme_lock()
 
-        self.on_top_check = QCheckBox("Always on top")
+        self.on_top_check = QCheckBox(self._t("always_on_top"))
         self.on_top_check.setChecked(config.ui.always_on_top)
         ui_form.addRow(self.on_top_check)
 
         self.opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.opacity_slider.setRange(50, 100)
         self.opacity_slider.setValue(int(config.ui.opacity * 100))
-        ui_form.addRow("Opacity:", self.opacity_slider)
+        ui_form.addRow(self._t("opacity"), self.opacity_slider)
 
         layout.addWidget(ui_group)
 
@@ -544,7 +549,7 @@ class SettingsDialog(QDialog):
         about_layout.addWidget(pro_group)
         about_layout.addStretch()
 
-        self._tabs.addTab(about_widget, "About")
+        self._tabs.addTab(about_widget, self._t("about"))
 
         # ── Buttons ────────────────────────────────────────────────────
         buttons = QDialogButtonBox(
