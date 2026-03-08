@@ -83,15 +83,27 @@ class Summarizer:
 
         # Temporarily adjust the system prompt to request output in the right language
         original_prompt = self.cfg.system_prompt
-        if detected_language and detected_language != "en" and not auto_translate_english:
+        is_non_english = detected_language and detected_language != "en"
+
+        if is_non_english:
             lang_name = self._LANG_NAMES.get(detected_language, detected_language)
-            self.cfg.system_prompt = (
-                f"CRITICAL INSTRUCTION: You MUST respond entirely in {lang_name}. "
-                f"Every word of your output must be in {lang_name}. "
-                f"Do NOT use English at all.\n\n"
-                f"{original_prompt}\n\n"
-                f"REMINDER: Your entire response must be written in {lang_name}."
-            )
+            if auto_translate_english:
+                # When auto-translate is on, still generate native first
+                self.cfg.system_prompt = (
+                    f"CRITICAL INSTRUCTION: You MUST respond entirely in {lang_name}. "
+                    f"Every word of your output must be in {lang_name}. "
+                    f"Do NOT use English at all.\n\n"
+                    f"{original_prompt}\n\n"
+                    f"REMINDER: Your entire response must be written in {lang_name}."
+                )
+            else:
+                self.cfg.system_prompt = (
+                    f"CRITICAL INSTRUCTION: You MUST respond entirely in {lang_name}. "
+                    f"Every word of your output must be in {lang_name}. "
+                    f"Do NOT use English at all.\n\n"
+                    f"{original_prompt}\n\n"
+                    f"REMINDER: Your entire response must be written in {lang_name}."
+                )
 
         backend = self.normalize_backend_name(self.cfg.backend)
 
@@ -107,11 +119,12 @@ class Summarizer:
         finally:
             self.cfg.system_prompt = original_prompt
 
-        # Bilingual: append English summary when source isn't English
+        # Bilingual: append English summary when auto-translate is on and source isn't English
         if (auto_translate_english
-                and detected_language
-                and detected_language != "en"
+                and is_non_english
                 and not summary.startswith("[")):
+            # Restore original prompt for the English translation pass
+            self.cfg.system_prompt = original_prompt
             english_prompt = (
                 "Translate the following summary into English. "
                 "Output only the English translation, nothing else.\n\n"
