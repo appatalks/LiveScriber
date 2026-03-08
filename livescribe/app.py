@@ -261,23 +261,6 @@ class SettingsDialog(QDialog):
         )
         tx_form.addRow(self.auto_translate_check)
 
-        self.app_lang_combo = QComboBox()
-        app_lang_options = [
-            ("en", "English"), ("ko", "한국어"), ("ja", "日本語"),
-            ("uk", "Українська"), ("es", "Español"), ("fr", "Français"),
-            ("de", "Deutsch"), ("pt", "Português"), ("ar", "العربية"),
-        ]
-        for code, label in app_lang_options:
-            self.app_lang_combo.addItem(label, code)
-        app_lang_idx = self.app_lang_combo.findData(config.ui.ui_language)
-        if app_lang_idx >= 0:
-            self.app_lang_combo.setCurrentIndex(app_lang_idx)
-        self.app_lang_combo.setToolTip(
-            "Change the language of buttons and labels in the app. "
-            "Requires restart to take full effect."
-        )
-        tx_form.addRow("App display language:", self.app_lang_combo)
-
         layout.addWidget(tx_group)
 
         # ── Summarization settings ─────────────────────────────────────
@@ -580,10 +563,6 @@ class SettingsDialog(QDialog):
         self.cfg.transcription.language = lang if lang else None
         self.cfg.transcription.live_transcription = self.live_transcription_check.isChecked()
         self.cfg.transcription.auto_translate_english = self.auto_translate_check.isChecked()
-
-        app_lang = self.app_lang_combo.currentData()
-        if app_lang:
-            self.cfg.ui.ui_language = app_lang
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
@@ -1756,7 +1735,7 @@ class LiveScribeWindow(QWidget):
 
         menu = QMenu(self)
         menu.setStyleSheet(self.styleSheet())
-        current = self.cfg.ui.ui_language
+        current = self.cfg.transcription.language or "en"
 
         for code in self._LANG_CYCLE:
             label = self._get_lang_display(code)
@@ -1769,18 +1748,14 @@ class LiveScribeWindow(QWidget):
         menu.exec(self.btn_lang.mapToGlobal(self.btn_lang.rect().bottomLeft()))
 
     def _set_language(self, code: str):
-        """Set the transcription language from the dropdown menu."""
-        self.cfg.ui.ui_language = code
+        """Set both transcription and UI display language from the 🌐 button."""
         self.cfg.transcription.language = None if code == "en" else code
+        self.cfg.ui.ui_language = code
+        self._ui_lang = code
 
         # distil-large-v3 only supports English well — auto-upgrade for other languages
         if code != "en" and self.cfg.transcription.model_size.startswith("distil"):
             self.cfg.transcription.model_size = "large-v3"
-            self.status_label.setText(
-                f"Language: {self._get_lang_display(code)} — switched to large-v3 (distil is English-only)"
-            )
-        else:
-            self.status_label.setText(f"Language set to {self._get_lang_display(code)}")
 
         # Switch back to distil when returning to English for faster transcription
         if code == "en" and self.cfg.transcription.model_size == "large-v3":
@@ -1789,8 +1764,8 @@ class LiveScribeWindow(QWidget):
         self.cfg.save()
         self.transcriber = Transcriber(self.cfg.transcription)
 
-        display = self._get_lang_display(code)
-        self.btn_lang.setToolTip(f"Transcription language: {display}")
+        # Rebuild UI with new language
+        self._rebuild_ui()
 
     # ── Settings ───────────────────────────────────────────────────────────
 
@@ -1818,6 +1793,24 @@ class LiveScribeWindow(QWidget):
 
             backend_label = self.cfg.summarizer.backend.capitalize()
             self.status_label.setText(f"Settings saved — {backend_label} summarizer")
+
+    def _rebuild_ui(self):
+        """Update all translatable labels/buttons to the current UI language."""
+        display = self._get_lang_display(self._ui_lang)
+        self.btn_lang.setToolTip(f"Language: {display}")
+        self.btn_transcribe.setText(self._t("transcribe"))
+        self.btn_summarize.setText(self._t("summarize"))
+        self.btn_import.setText(self._t("import_audio"))
+        self.btn_copy.setText(self._t("copy_all"))
+        self.btn_save.setText(self._t("save_md"))
+        self.btn_save_wav.setText(self._t("save_wav"))
+        self.btn_play.setText(self._t("play"))
+        self.btn_hist_prev.setToolTip(self._t("previous_session"))
+        self.btn_hist_next.setToolTip(self._t("next_session"))
+        self.transcript_section.toggle_btn.setText(f"▼  {self._t('transcription')}")
+        self.summary_section.toggle_btn.setText(f"▼  {self._t('summary_notes')}")
+        self.hist_label.setText(self._t("new_session"))
+        self.status_label.setText(f"{self._t('ready')} — {display}")
 
 
 def run_app(config: AppConfig | None = None):
