@@ -279,7 +279,8 @@ class SettingsDialog(QDialog):
         sum_form.addRow(self._t("backend"), self.sum_backend_combo)
 
         self.prompt_edit = QTextEdit()
-        self.prompt_edit.setPlainText(config.summarizer.system_prompt)
+        from livescribe.i18n import get_system_prompt
+        self.prompt_edit.setPlainText(get_system_prompt(self._ui_lang))
         self.prompt_edit.setMaximumHeight(100)
         sum_form.addRow(self._t("system_prompt"), self.prompt_edit)
 
