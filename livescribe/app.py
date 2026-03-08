@@ -47,6 +47,7 @@ from livescribe.recorder import Recorder
 from livescribe.transcriber import Transcriber
 from livescribe.summarizer import Summarizer
 from livescribe.styles import get_theme
+from livescribe.i18n import t
 
 
 def _resolve_assets_dir() -> Path | None:
@@ -259,6 +260,23 @@ class SettingsDialog(QDialog):
             "The summary will include both the original language and an English version."
         )
         tx_form.addRow(self.auto_translate_check)
+
+        self.app_lang_combo = QComboBox()
+        app_lang_options = [
+            ("en", "English"), ("ko", "한국어"), ("ja", "日本語"),
+            ("uk", "Українська"), ("es", "Español"), ("fr", "Français"),
+            ("de", "Deutsch"), ("pt", "Português"), ("ar", "العربية"),
+        ]
+        for code, label in app_lang_options:
+            self.app_lang_combo.addItem(label, code)
+        app_lang_idx = self.app_lang_combo.findData(config.ui.ui_language)
+        if app_lang_idx >= 0:
+            self.app_lang_combo.setCurrentIndex(app_lang_idx)
+        self.app_lang_combo.setToolTip(
+            "Change the language of buttons and labels in the app. "
+            "Requires restart to take full effect."
+        )
+        tx_form.addRow("App display language:", self.app_lang_combo)
 
         layout.addWidget(tx_group)
 
@@ -563,6 +581,10 @@ class SettingsDialog(QDialog):
         self.cfg.transcription.live_transcription = self.live_transcription_check.isChecked()
         self.cfg.transcription.auto_translate_english = self.auto_translate_check.isChecked()
 
+        app_lang = self.app_lang_combo.currentData()
+        if app_lang:
+            self.cfg.ui.ui_language = app_lang
+
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
         self.cfg.summarizer.local_model_key = self.local_model_combo.currentData()
@@ -830,6 +852,7 @@ class LiveScribeWindow(QWidget):
         super().__init__()
         self.cfg = config
         self._drag_pos: QPoint | None = None
+        self._ui_lang = config.ui.ui_language
 
         icon_path = _resolve_app_icon_path()
         if icon_path:
@@ -887,6 +910,10 @@ class LiveScribeWindow(QWidget):
 
         # Apply theme
         self.setStyleSheet(get_theme(config.ui.theme))
+
+    def _t(self, key: str) -> str:
+        """Shorthand for translating a UI string key."""
+        return t(key, self._ui_lang)
 
     # ── UI Construction ────────────────────────────────────────────────────
 
@@ -978,11 +1005,11 @@ class LiveScribeWindow(QWidget):
         self.btn_hist_prev.setObjectName("secondaryBtn")
         self.btn_hist_prev.setFixedWidth(32)
         self.btn_hist_prev.setEnabled(False)
-        self.btn_hist_prev.setToolTip("Previous session")
+        self.btn_hist_prev.setToolTip(self._t("previous_session"))
         self.btn_hist_prev.clicked.connect(self._hist_prev)
         hist_row.addWidget(self.btn_hist_prev)
 
-        self.hist_label = QLabel("New session")
+        self.hist_label = QLabel(self._t("new_session"))
         self.hist_label.setObjectName("statusLabel")
         self.hist_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hist_row.addWidget(self.hist_label)
@@ -990,19 +1017,19 @@ class LiveScribeWindow(QWidget):
         self.btn_hist_next = QPushButton("▶")
         self.btn_hist_next.setObjectName("secondaryBtn")
         self.btn_hist_next.setFixedWidth(32)
-        self.btn_hist_next.setToolTip("Next / New session")
+        self.btn_hist_next.setToolTip(self._t("next_session"))
         self.btn_hist_next.clicked.connect(self._hist_next)
         hist_row.addWidget(self.btn_hist_next)
 
         cl.addLayout(hist_row)
 
         # Transcript section
-        self.transcript_section = CollapsibleSection("Transcription", "transcriptArea")
+        self.transcript_section = CollapsibleSection(self._t("transcription"), "transcriptArea")
         self.transcript_section.expand()
         cl.addWidget(self.transcript_section)
 
         # Summary section
-        self.summary_section = CollapsibleSection("Summary && Notes", "summaryArea", editable=True)
+        self.summary_section = CollapsibleSection(self._t("summary_notes"), "summaryArea", editable=True)
         self.summary_section.expand()
         cl.addWidget(self.summary_section)
 
@@ -1010,13 +1037,13 @@ class LiveScribeWindow(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        self.btn_transcribe = QPushButton("Transcribe")
+        self.btn_transcribe = QPushButton(self._t("transcribe"))
         self.btn_transcribe.setObjectName("actionBtn")
         self.btn_transcribe.setEnabled(False)
         self.btn_transcribe.clicked.connect(self._start_transcription)
         btn_row.addWidget(self.btn_transcribe)
 
-        self.btn_summarize = QPushButton("Summarize")
+        self.btn_summarize = QPushButton(self._t("summarize"))
         self.btn_summarize.setObjectName("actionBtn")
         self.btn_summarize.setEnabled(False)
         self.btn_summarize.clicked.connect(self._start_summarization)
@@ -1028,17 +1055,17 @@ class LiveScribeWindow(QWidget):
         btn_row2 = QHBoxLayout()
         btn_row2.setSpacing(8)
 
-        self.btn_import = QPushButton("Import Audio")
+        self.btn_import = QPushButton(self._t("import_audio"))
         self.btn_import.setObjectName("secondaryBtn")
         self.btn_import.clicked.connect(self._import_audio)
         btn_row2.addWidget(self.btn_import)
 
-        self.btn_copy = QPushButton("Copy All")
+        self.btn_copy = QPushButton(self._t("copy_all"))
         self.btn_copy.setObjectName("secondaryBtn")
         self.btn_copy.clicked.connect(self._copy_all)
         btn_row2.addWidget(self.btn_copy)
 
-        self.btn_save = QPushButton("Save MD")
+        self.btn_save = QPushButton(self._t("save_md"))
         self.btn_save.setObjectName("secondaryBtn")
         self.btn_save.clicked.connect(self._save_markdown)
         btn_row2.addWidget(self.btn_save)
@@ -1049,13 +1076,13 @@ class LiveScribeWindow(QWidget):
         btn_row3 = QHBoxLayout()
         btn_row3.setSpacing(8)
 
-        self.btn_play = QPushButton("▶ Play")
+        self.btn_play = QPushButton(self._t("play"))
         self.btn_play.setObjectName("secondaryBtn")
         self.btn_play.setEnabled(False)
         self.btn_play.clicked.connect(self._play_audio)
         btn_row3.addWidget(self.btn_play)
 
-        self.btn_save_wav = QPushButton("Save WAV")
+        self.btn_save_wav = QPushButton(self._t("save_wav"))
         self.btn_save_wav.setObjectName("secondaryBtn")
         self.btn_save_wav.setEnabled(False)
         self.btn_save_wav.clicked.connect(self._save_wav)
@@ -1067,7 +1094,7 @@ class LiveScribeWindow(QWidget):
 
         # Status
         backend_label = self.cfg.summarizer.backend.capitalize()
-        self.status_label = QLabel(f"Ready — {backend_label} summarizer")
+        self.status_label = QLabel(f"{self._t('ready')} — {backend_label}")
         self.status_label.setObjectName("statusLabel")
         cl.addWidget(self.status_label)
 
@@ -1529,7 +1556,7 @@ class LiveScribeWindow(QWidget):
         idx = self._history_idx
 
         if total == 0 or idx >= total:
-            label = f"New  ({total} saved)" if total > 0 else "New session"
+            label = f"{self._t('new_session')}  ({total})" if total > 0 else self._t("new_session")
             self.hist_label.setText(label)
             self.btn_hist_prev.setEnabled(total > 0)
             self.btn_hist_next.setEnabled(False)
