@@ -280,7 +280,13 @@ class SettingsDialog(QDialog):
 
         self.prompt_edit = QTextEdit()
         from livescribe.i18n import get_system_prompt
-        self.prompt_edit.setPlainText(get_system_prompt(self._ui_lang))
+        # Show the persisted prompt, falling back to the localized default
+        saved_prompt = config.summarizer.system_prompt
+        default_en = get_system_prompt("en")
+        if saved_prompt == default_en or not saved_prompt:
+            self.prompt_edit.setPlainText(get_system_prompt(self._ui_lang))
+        else:
+            self.prompt_edit.setPlainText(saved_prompt)
         self.prompt_edit.setMaximumHeight(100)
         sum_form.addRow(self._t("system_prompt"), self.prompt_edit)
 
@@ -935,7 +941,7 @@ class LiveScribeWindow(QWidget):
         tb_layout.addWidget(btn_settings)
 
         self.btn_lang = QPushButton("🌐")
-        self.btn_lang.setObjectName("btnMinimize")
+        self.btn_lang.setObjectName("btnLang")
         self.btn_lang.setFixedSize(32, 32)
         self.btn_lang.setToolTip(f"Transcription language: {self._get_lang_display(self.cfg.ui.ui_language)}")
         self.btn_lang.clicked.connect(self._show_language_menu)
@@ -1434,13 +1440,13 @@ class LiveScribeWindow(QWidget):
     @pyqtSlot()
     def _start_summarization(self):
         if not self._transcript_text:
-            self.status_label.setText("Transcribe first before summarizing")
+            self.status_label.setText(self._t("transcribe_first"))
             return
 
         self.btn_summarize.setEnabled(False)
         self.summary_section.clear()
         self.summary_section.expand()
-        self.status_label.setText("Generating summary…")
+        self.status_label.setText(self._t("generating_summary"))
 
         # Always use the 🌐 selected language for summarization — that's the
         # user's explicit choice for what language they want the output in

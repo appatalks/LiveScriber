@@ -34,7 +34,7 @@ class TranscriptionConfig:
     vad_filter: bool = False         # voice-activity-detection filter (can drop quiet audio)
     chunk_minutes: int = 10          # split long recordings into chunks of this size
     live_transcription: bool = False  # transcribe while recording (streams rough draft)
-    auto_translate_english: bool = False  # translate non-English speech to English
+    auto_translate_english: bool = False  # append English translation to summary (transcript stays in original language)
 
 
 @dataclass

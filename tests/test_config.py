@@ -41,6 +41,7 @@ class TestConfigDefaults:
         assert cfg.opacity == 0.95
         assert cfg.always_on_top is True
         assert cfg.theme == "dark"
+        assert cfg.ui_language == "en"
 
 
 class TestConfigMigration:

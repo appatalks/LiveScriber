@@ -105,7 +105,10 @@ class Summarizer:
         if (auto_translate_english
                 and is_non_english
                 and backend != "copilot"
-                and not summary.startswith("[")):
+                and not summary.startswith("[Local")
+                and not summary.startswith("[Copilot")
+                and not summary.startswith("[Server")
+                and not summary.startswith("[OpenAI")):
             # Restore original prompt for the English translation pass
             self.cfg.system_prompt = original_prompt
             english_prompt = (
@@ -113,9 +116,7 @@ class Summarizer:
                 "Output only the English translation, nothing else.\n\n"
                 + summary
             )
-            if backend == "copilot":
-                english = self._summarize_copilot(english_prompt)
-            elif backend == "local":
+            if backend == "local":
                 english = self._summarize_local(english_prompt)
             elif backend == "openai":
                 english = self._summarize_openai(english_prompt)
@@ -379,7 +380,12 @@ class Summarizer:
 
             # Enable fault handler to get a traceback on segfaults instead of silent crash
             import faulthandler
-            faulthandler.enable()
+            import sys
+            if hasattr(sys, "stderr") and sys.stderr is not None and hasattr(sys.stderr, "fileno"):
+                try:
+                    faulthandler.enable()
+                except Exception:
+                    pass
 
             messages = [
                 {"role": "system", "content": self.cfg.system_prompt},
@@ -450,15 +456,16 @@ class Summarizer:
         return self._local_llm
 
     def _effective_context_window(self) -> int:
-        """Return the context window to use, auto-scaled up to the model's max.
+        """Return the context window to use, capped at the model's max_context.
 
-        Uses the model's max_context from the catalog when it exceeds the user's
-        configured value, giving more room for longer transcripts.
+        The effective context window will not exceed the model's catalog
+        max_context value. If the user configures a smaller context window,
+        that smaller value is used instead.
         """
         user_ctx = self.cfg.local_context_window
         meta = LOCAL_MODEL_CATALOG.get(self.cfg.local_model_key, {})
         model_max = meta.get("max_context", user_ctx)
-        return max(user_ctx, model_max)
+        return min(user_ctx, model_max) if user_ctx > 0 else model_max
 
     @staticmethod
     def get_local_model_options() -> dict[str, str]:
