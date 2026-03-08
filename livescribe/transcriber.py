@@ -70,7 +70,14 @@ class Transcriber:
     # ── Public API ─────────────────────────────────────────────────────────
 
     def transcribe_live_chunk(self, audio: np.ndarray, sample_rate: int = 16_000) -> str:
-        """Transcribe a short audio chunk for live streaming. Always in-process."""
+        """Transcribe a short audio chunk for live streaming. Always in-process.
+
+        Not supported on Windows where transcription is isolated in a helper
+        subprocess to avoid Qt/native library conflicts in the GUI process.
+        """
+        if self._should_use_subprocess():
+            return ""
+
         if audio.size < sample_rate * 2:  # skip chunks under 2 seconds
             return ""
 
