@@ -484,3 +484,116 @@ SYSTEM_PROMPTS: dict[str, str] = {
 def get_system_prompt(lang: str = "en") -> str:
     """Return the system prompt in the given language, falling back to English."""
     return SYSTEM_PROMPTS.get(lang, SYSTEM_PROMPTS["en"])
+
+
+# ── Copilot CLI specific prompts ──────────────────────────────────────────
+# Copilot CLI is a coding assistant and rejects generic note-taking prompts.
+# These prompts frame the task as generating documentation from a transcript,
+# which Copilot accepts as a code-adjacent task.
+
+COPILOT_PROMPTS: dict[str, str] = {
+    "en": (
+        "I have a transcript from a recorded audio session. "
+        "Please generate clean, organized documentation notes from it. "
+        "Structure the output as:\n"
+        "- A brief summary (2-3 sentences)\n"
+        "- Key points discussed as bullet points\n"
+        "- Any decisions or conclusions reached\n"
+        "- Action items or next steps if mentioned\n"
+        "Be concise and factual. Output only the notes, nothing else.\n\n"
+        "Transcript:\n\n"
+    ),
+    "ko": (
+        "녹음된 오디오 세션의 텍스트 변환본이 있습니다. "
+        "이를 바탕으로 깔끔하고 정리된 문서 노트를 작성해 주세요. "
+        "다음 구조로 출력하세요:\n"
+        "- 간단한 요약 (2-3문장)\n"
+        "- 논의된 핵심 사항을 글머리 기호로 정리\n"
+        "- 결정사항 또는 결론\n"
+        "- 실행 항목 또는 다음 단계\n"
+        "간결하고 사실에 기반하세요. 노트만 출력하세요. 반드시 한국어로 작성하세요.\n\n"
+        "텍스트 변환본:\n\n"
+    ),
+    "ja": (
+        "録音されたオーディオセッションの文字起こしがあります。"
+        "これを基に、整理されたドキュメントノートを作成してください。"
+        "次の構造で出力してください：\n"
+        "- 簡潔な要約（2〜3文）\n"
+        "- 議論された重要なポイントを箇条書きで\n"
+        "- 決定事項または結論\n"
+        "- アクションアイテムまたは次のステップ\n"
+        "簡潔で事実に基づいてください。ノートのみ出力してください。必ず日本語で記述してください。\n\n"
+        "文字起こし：\n\n"
+    ),
+    "uk": (
+        "У мене є транскрипція записаного аудіосеансу. "
+        "Будь ласка, створіть чіткі, організовані нотатки-документацію з неї. "
+        "Структуруйте вивід так:\n"
+        "- Короткий підсумок (2-3 речення)\n"
+        "- Ключові моменти як маркований список\n"
+        "- Прийняті рішення або висновки\n"
+        "- Завдання або наступні кроки\n"
+        "Будьте стислі та фактичні. Виводьте лише нотатки. Обов'язково пишіть українською.\n\n"
+        "Транскрипція:\n\n"
+    ),
+    "es": (
+        "Tengo una transcripción de una sesión de audio grabada. "
+        "Por favor, genera notas de documentación limpias y organizadas. "
+        "Estructura la salida como:\n"
+        "- Un breve resumen (2-3 oraciones)\n"
+        "- Puntos clave discutidos como viñetas\n"
+        "- Decisiones o conclusiones alcanzadas\n"
+        "- Elementos de acción o próximos pasos\n"
+        "Sé conciso y factual. Solo produce las notas. Escribe en español.\n\n"
+        "Transcripción:\n\n"
+    ),
+    "fr": (
+        "J'ai une transcription d'une session audio enregistrée. "
+        "Veuillez générer des notes de documentation claires et organisées. "
+        "Structurez la sortie ainsi :\n"
+        "- Un bref résumé (2-3 phrases)\n"
+        "- Points clés discutés sous forme de puces\n"
+        "- Décisions ou conclusions prises\n"
+        "- Actions à entreprendre ou prochaines étapes\n"
+        "Soyez concis et factuel. Produisez uniquement les notes. Rédigez en français.\n\n"
+        "Transcription :\n\n"
+    ),
+    "de": (
+        "Ich habe eine Transkription einer aufgezeichneten Audiositzung. "
+        "Bitte erstellen Sie saubere, organisierte Dokumentationsnotizen. "
+        "Strukturieren Sie die Ausgabe wie folgt:\n"
+        "- Eine kurze Zusammenfassung (2-3 Sätze)\n"
+        "- Wichtige Punkte als Aufzählung\n"
+        "- Getroffene Entscheidungen oder Schlussfolgerungen\n"
+        "- Aufgaben oder nächste Schritte\n"
+        "Seien Sie prägnant und sachlich. Geben Sie nur die Notizen aus. Schreiben Sie auf Deutsch.\n\n"
+        "Transkription:\n\n"
+    ),
+    "pt": (
+        "Tenho uma transcrição de uma sessão de áudio gravada. "
+        "Por favor, gere notas de documentação limpas e organizadas. "
+        "Estruture a saída como:\n"
+        "- Um breve resumo (2-3 frases)\n"
+        "- Pontos-chave discutidos como marcadores\n"
+        "- Decisões ou conclusões alcançadas\n"
+        "- Itens de ação ou próximos passos\n"
+        "Seja conciso e factual. Produza apenas as notas. Escreva em português.\n\n"
+        "Transcrição:\n\n"
+    ),
+    "ar": (
+        "لدي نص مكتوب من جلسة صوتية مسجلة. "
+        "يرجى إنشاء ملاحظات توثيقية واضحة ومنظمة. "
+        "هيكل الإخراج كالتالي:\n"
+        "- ملخص موجز (2-3 جمل)\n"
+        "- النقاط الرئيسية كنقاط\n"
+        "- القرارات أو الاستنتاجات\n"
+        "- بنود العمل أو الخطوات التالية\n"
+        "كن موجزاً وواقعياً. أخرج الملاحظات فقط. اكتب بالعربية.\n\n"
+        "النص:\n\n"
+    ),
+}
+
+
+def get_copilot_prompt(lang: str = "en") -> str:
+    """Return the Copilot-specific prompt in the given language, falling back to English."""
+    return COPILOT_PROMPTS.get(lang, COPILOT_PROMPTS["en"])

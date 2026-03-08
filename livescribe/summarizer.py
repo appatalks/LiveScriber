@@ -80,6 +80,7 @@ class Summarizer:
         # Use a fully translated system prompt for the detected language
         original_prompt = self.cfg.system_prompt
         is_non_english = detected_language and detected_language != "en"
+        self._current_lang = detected_language or "en"
 
         if is_non_english:
             self.cfg.system_prompt = get_system_prompt(detected_language)
@@ -154,14 +155,18 @@ class Summarizer:
 
     def _summarize_copilot(self, transcript: str) -> str:
         """Summarize via Copilot CLI (copilot --prompt)."""
+        from livescribe.i18n import get_copilot_prompt
+
+        # Use Copilot-specific prompt that frames the task as documentation
+        # generation, which Copilot accepts (unlike generic note-taking prompts)
+        lang = getattr(self, '_current_lang', 'en') or 'en'
+        copilot_prompt = get_copilot_prompt(lang) + transcript
+
         command = self._build_copilot_command(
             "--model",
             self.cfg.copilot_model,
             "--prompt",
-            (
-                f"{self.cfg.system_prompt}\n\n"
-                f"Here is the meeting transcript:\n\n{transcript}"
-            ),
+            copilot_prompt,
             "--allow-all-tools",
             "--no-color",
         )
