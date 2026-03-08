@@ -81,6 +81,7 @@ class Summarizer:
         original_prompt = self.cfg.system_prompt
         is_non_english = detected_language and detected_language != "en"
         self._current_lang = detected_language or "en"
+        self._auto_translate = auto_translate_english
 
         if is_non_english:
             self.cfg.system_prompt = get_system_prompt(detected_language)
@@ -100,8 +101,10 @@ class Summarizer:
             self.cfg.system_prompt = original_prompt
 
         # Bilingual: append English summary when auto-translate is on and source isn't English
+        # Copilot handles this in a single prompt, so skip the second pass for it
         if (auto_translate_english
                 and is_non_english
+                and backend != "copilot"
                 and not summary.startswith("[")):
             # Restore original prompt for the English translation pass
             self.cfg.system_prompt = original_prompt
@@ -160,7 +163,8 @@ class Summarizer:
         # Use Copilot-specific prompt that frames the task as documentation
         # generation, which Copilot accepts (unlike generic note-taking prompts)
         lang = getattr(self, '_current_lang', 'en') or 'en'
-        copilot_prompt = get_copilot_prompt(lang) + transcript
+        append_english = getattr(self, '_auto_translate', False)
+        copilot_prompt = get_copilot_prompt(lang, append_english=append_english) + transcript
 
         command = self._build_copilot_command(
             "--model",

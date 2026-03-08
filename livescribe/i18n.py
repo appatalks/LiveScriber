@@ -588,107 +588,142 @@ def get_system_prompt(lang: str = "en") -> str:
 
 COPILOT_PROMPTS: dict[str, str] = {
     "en": (
-        "I have a transcript from a recorded audio session. "
-        "Please generate clean, organized documentation notes from it. "
-        "Structure the output as:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes.\n\n"
+        "Structure:\n"
         "- A brief summary (2-3 sentences)\n"
         "- Key points discussed as bullet points\n"
         "- Any decisions or conclusions reached\n"
-        "- Action items or next steps if mentioned\n"
-        "Be concise and factual. Output only the notes, nothing else.\n\n"
+        "- Action items or next steps if mentioned\n\n"
         "Transcript:\n\n"
     ),
     "ko": (
-        "녹음된 오디오 세션의 텍스트 변환본이 있습니다. "
-        "이를 바탕으로 깔끔하고 정리된 문서 노트를 작성해 주세요. "
-        "다음 구조로 출력하세요:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in Korean (한국어).\n\n"
+        "구조:\n"
         "- 간단한 요약 (2-3문장)\n"
         "- 논의된 핵심 사항을 글머리 기호로 정리\n"
         "- 결정사항 또는 결론\n"
-        "- 실행 항목 또는 다음 단계\n"
-        "간결하고 사실에 기반하세요. 노트만 출력하세요. 반드시 한국어로 작성하세요.\n\n"
+        "- 실행 항목 또는 다음 단계\n\n"
         "텍스트 변환본:\n\n"
     ),
     "ja": (
-        "録音されたオーディオセッションの文字起こしがあります。"
-        "これを基に、整理されたドキュメントノートを作成してください。"
-        "次の構造で出力してください：\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in Japanese (日本語).\n\n"
+        "構造：\n"
         "- 簡潔な要約（2〜3文）\n"
         "- 議論された重要なポイントを箇条書きで\n"
         "- 決定事項または結論\n"
-        "- アクションアイテムまたは次のステップ\n"
-        "簡潔で事実に基づいてください。ノートのみ出力してください。必ず日本語で記述してください。\n\n"
+        "- アクションアイテムまたは次のステップ\n\n"
         "文字起こし：\n\n"
     ),
     "uk": (
-        "У мене є транскрипція записаного аудіосеансу. "
-        "Будь ласка, створіть чіткі, організовані нотатки-документацію з неї. "
-        "Структуруйте вивід так:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in Ukrainian (Українська).\n\n"
+        "Структура:\n"
         "- Короткий підсумок (2-3 речення)\n"
         "- Ключові моменти як маркований список\n"
         "- Прийняті рішення або висновки\n"
-        "- Завдання або наступні кроки\n"
-        "Будьте стислі та фактичні. Виводьте лише нотатки. Обов'язково пишіть українською.\n\n"
+        "- Завдання або наступні кроки\n\n"
         "Транскрипція:\n\n"
     ),
     "es": (
-        "Tengo una transcripción de una sesión de audio grabada. "
-        "Por favor, genera notas de documentación limpias y organizadas. "
-        "Estructura la salida como:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in Spanish (Español).\n\n"
+        "Estructura:\n"
         "- Un breve resumen (2-3 oraciones)\n"
         "- Puntos clave discutidos como viñetas\n"
         "- Decisiones o conclusiones alcanzadas\n"
-        "- Elementos de acción o próximos pasos\n"
-        "Sé conciso y factual. Solo produce las notas. Escribe en español.\n\n"
+        "- Elementos de acción o próximos pasos\n\n"
         "Transcripción:\n\n"
     ),
     "fr": (
-        "J'ai une transcription d'une session audio enregistrée. "
-        "Veuillez générer des notes de documentation claires et organisées. "
-        "Structurez la sortie ainsi :\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in French (Français).\n\n"
+        "Structure :\n"
         "- Un bref résumé (2-3 phrases)\n"
         "- Points clés discutés sous forme de puces\n"
         "- Décisions ou conclusions prises\n"
-        "- Actions à entreprendre ou prochaines étapes\n"
-        "Soyez concis et factuel. Produisez uniquement les notes. Rédigez en français.\n\n"
+        "- Actions à entreprendre ou prochaines étapes\n\n"
         "Transcription :\n\n"
     ),
     "de": (
-        "Ich habe eine Transkription einer aufgezeichneten Audiositzung. "
-        "Bitte erstellen Sie saubere, organisierte Dokumentationsnotizen. "
-        "Strukturieren Sie die Ausgabe wie folgt:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in German (Deutsch).\n\n"
+        "Struktur:\n"
         "- Eine kurze Zusammenfassung (2-3 Sätze)\n"
         "- Wichtige Punkte als Aufzählung\n"
         "- Getroffene Entscheidungen oder Schlussfolgerungen\n"
-        "- Aufgaben oder nächste Schritte\n"
-        "Seien Sie prägnant und sachlich. Geben Sie nur die Notizen aus. Schreiben Sie auf Deutsch.\n\n"
+        "- Aufgaben oder nächste Schritte\n\n"
         "Transkription:\n\n"
     ),
     "pt": (
-        "Tenho uma transcrição de uma sessão de áudio gravada. "
-        "Por favor, gere notas de documentação limpas e organizadas. "
-        "Estruture a saída como:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in Portuguese (Português).\n\n"
+        "Estrutura:\n"
         "- Um breve resumo (2-3 frases)\n"
         "- Pontos-chave discutidos como marcadores\n"
         "- Decisões ou conclusões alcançadas\n"
-        "- Itens de ação ou próximos passos\n"
-        "Seja conciso e factual. Produza apenas as notas. Escreva em português.\n\n"
+        "- Itens de ação ou próximos passos\n\n"
         "Transcrição:\n\n"
     ),
     "ar": (
-        "لدي نص مكتوب من جلسة صوتية مسجلة. "
-        "يرجى إنشاء ملاحظات توثيقية واضحة ومنظمة. "
-        "هيكل الإخراج كالتالي:\n"
+        "You are acting as a backend text processing service for the LiveScribe app. "
+        "Your only job is to process the transcript below into structured notes. "
+        "Do NOT ask questions, offer help with code, or add any commentary. "
+        "Output ONLY the formatted notes. Write entirely in Arabic (العربية).\n\n"
+        "الهيكل:\n"
         "- ملخص موجز (2-3 جمل)\n"
         "- النقاط الرئيسية كنقاط\n"
         "- القرارات أو الاستنتاجات\n"
-        "- بنود العمل أو الخطوات التالية\n"
-        "كن موجزاً وواقعياً. أخرج الملاحظات فقط. اكتب بالعربية.\n\n"
+        "- بنоد العمل أو الخطوات التالية\n\n"
         "النص:\n\n"
     ),
 }
 
 
-def get_copilot_prompt(lang: str = "en") -> str:
-    """Return the Copilot-specific prompt in the given language, falling back to English."""
-    return COPILOT_PROMPTS.get(lang, COPILOT_PROMPTS["en"])
+def get_copilot_prompt(lang: str = "en", append_english: bool = False) -> str:
+    """Return the Copilot-specific prompt in the given language.
+
+    When append_english is True and lang is not English, adds an instruction
+    to produce bilingual output (native language first, then English).
+    """
+    prompt = COPILOT_PROMPTS.get(lang, COPILOT_PROMPTS["en"])
+    if append_english and lang != "en":
+        lang_name = {
+            "ko": "Korean", "ja": "Japanese", "uk": "Ukrainian",
+            "es": "Spanish", "fr": "French", "de": "German",
+            "pt": "Portuguese", "ar": "Arabic",
+        }.get(lang, lang)
+        prompt = prompt.replace(
+            "Transcript:\n\n",
+            f"IMPORTANT: First write the notes in {lang_name}, then add a section "
+            f"titled '**English Summary:**' with the same notes translated to English. "
+            f"Output both sections.\n\nTranscript:\n\n"
+        )
+        # Also handle non-English "Transcript:" labels
+        for label in ["텍스트 변환본:", "文字起こし:", "Транскрипція:", "Transcripción:",
+                       "Transcription :", "Transkription:", "Transcrição:", "النص:"]:
+            prompt = prompt.replace(
+                f"{label}\n\n",
+                f"IMPORTANT: First write the notes in {lang_name}, then add a section "
+                f"titled '**English Summary:**' with the same notes translated to English. "
+                f"Output both sections.\n\n{label}\n\n"
+            )
+    return prompt
