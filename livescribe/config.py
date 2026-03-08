@@ -34,6 +34,7 @@ class TranscriptionConfig:
     vad_filter: bool = False         # voice-activity-detection filter (can drop quiet audio)
     chunk_minutes: int = 10          # split long recordings into chunks of this size
     live_transcription: bool = False  # transcribe while recording (streams rough draft)
+    auto_translate_english: bool = False  # translate non-English speech to English
 
 
 @dataclass
@@ -74,6 +75,7 @@ class UIConfig:
     opacity: float = 0.95
     always_on_top: bool = True
     theme: str = "dark"              # dark | light
+    ui_language: str = "en"          # UI display language code (en, ko, es, fr, etc.)
 
 
 @dataclass

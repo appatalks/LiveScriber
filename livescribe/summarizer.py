@@ -60,33 +60,69 @@ class Summarizer:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
-    def summarize(self, transcript: str) -> str:
-        """Summarize transcript text. Returns the summary string."""
+    def summarize(self, transcript: str, detected_language: str | None = None,
+                  auto_translate_english: bool = False) -> str:
+        """Summarize transcript text. Returns the summary string.
+
+        When auto_translate_english is True and the detected language is not
+        English, produces a bilingual summary: native language first, then
+        an English translation appended below.
+        """
         if not transcript.strip():
             return ""
 
         backend = self.normalize_backend_name(self.cfg.backend)
 
         if backend == "copilot":
-            return self._summarize_copilot(transcript)
+            summary = self._summarize_copilot(transcript)
         elif backend == "local":
-            return self._summarize_local(transcript)
+            summary = self._summarize_local(transcript)
         elif backend == "openai":
-            return self._summarize_openai(transcript)
+            summary = self._summarize_openai(transcript)
         else:
-            return self._summarize_ollama(transcript)
+            summary = self._summarize_ollama(transcript)
+
+        # Bilingual: append English summary when source isn't English
+        if (auto_translate_english
+                and detected_language
+                and detected_language != "en"
+                and not summary.startswith("[")):
+            english_prompt = (
+                "Translate the following summary into English. "
+                "Output only the English translation, nothing else.\n\n"
+                + summary
+            )
+            if backend == "copilot":
+                english = self._summarize_copilot(english_prompt)
+            elif backend == "local":
+                english = self._summarize_local(english_prompt)
+            elif backend == "openai":
+                english = self._summarize_openai(english_prompt)
+            else:
+                english = self._summarize_ollama(english_prompt)
+
+            if english and not english.startswith("["):
+                summary += "\n\n---\n\n**English Summary:**\n\n" + english
+
+        return summary
 
     def summarize_async(
         self,
         transcript: str,
         on_complete: Callable[[str], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
+        detected_language: str | None = None,
+        auto_translate_english: bool = False,
     ) -> threading.Thread:
         """Run summarization in a background thread."""
 
         def _worker():
             try:
-                result = self.summarize(transcript)
+                result = self.summarize(
+                    transcript,
+                    detected_language=detected_language,
+                    auto_translate_english=auto_translate_english,
+                )
                 if on_complete:
                     on_complete(result)
             except Exception as exc:

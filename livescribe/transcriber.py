@@ -26,6 +26,12 @@ class Transcriber:
         self.cfg = config
         self._local_model = None
         self._lock = threading.Lock()
+        self._last_detected_language: str | None = None
+
+    @property
+    def detected_language(self) -> str | None:
+        """Return the language code detected by the last transcription, or None."""
+        return self._last_detected_language
 
     # ── Lazy model loading ─────────────────────────────────────────────────
 
@@ -121,6 +127,7 @@ class Transcriber:
         self._ensure_local_model()
 
         segments, info = self._transcribe_segments(str(audio_path))
+        self._last_detected_language = getattr(info, "language", None)
 
         parts: list[str] = []
         for segment in segments:
@@ -241,6 +248,7 @@ class Transcriber:
     ) -> str:
         """Transcribe a single chunk of audio."""
         segments, info = self._transcribe_segments(audio)
+        self._last_detected_language = getattr(info, "language", None)
 
         parts: list[str] = []
         for segment in segments:
@@ -253,12 +261,14 @@ class Transcriber:
 
     def _transcribe_segments(self, audio_input):
         """Run faster-whisper transcription and retry on CPU if CUDA runtime is unavailable."""
+        task = "translate" if self.cfg.auto_translate_english else "transcribe"
         try:
             return self._local_model.transcribe(
                 audio_input,
                 beam_size=self.cfg.beam_size,
                 language=self.cfg.language,
                 vad_filter=self.cfg.vad_filter,
+                task=task,
             )
         except Exception as exc:
             if not self._should_fallback_to_cpu(exc):
@@ -276,6 +286,7 @@ class Transcriber:
                 beam_size=self.cfg.beam_size,
                 language=self.cfg.language,
                 vad_filter=self.cfg.vad_filter,
+                task=task,
             )
 
     def _should_use_subprocess(self) -> bool:

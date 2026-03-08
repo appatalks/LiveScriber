@@ -252,6 +252,14 @@ class SettingsDialog(QDialog):
         )
         tx_form.addRow(self.live_transcription_check)
 
+        self.auto_translate_check = QCheckBox("Auto-translate to English")
+        self.auto_translate_check.setChecked(config.transcription.auto_translate_english)
+        self.auto_translate_check.setToolTip(
+            "When enabled, non-English speech is translated to English during transcription. "
+            "The summary will include both the original language and an English version."
+        )
+        tx_form.addRow(self.auto_translate_check)
+
         layout.addWidget(tx_group)
 
         # ── Summarization settings ─────────────────────────────────────
@@ -553,6 +561,7 @@ class SettingsDialog(QDialog):
         lang = self.lang_edit.text().strip()
         self.cfg.transcription.language = lang if lang else None
         self.cfg.transcription.live_transcription = self.live_transcription_check.isChecked()
+        self.cfg.transcription.auto_translate_english = self.auto_translate_check.isChecked()
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
@@ -905,6 +914,13 @@ class LiveScribeWindow(QWidget):
         tb_layout.addWidget(title_label)
 
         tb_layout.addStretch()
+
+        self.btn_lang = QPushButton("🌐")
+        self.btn_lang.setObjectName("btnMinimize")
+        self.btn_lang.setFixedSize(32, 32)
+        self.btn_lang.setToolTip(f"Language: {self._get_lang_display(config.ui.ui_language)}")
+        self.btn_lang.clicked.connect(self._toggle_language)
+        tb_layout.addWidget(self.btn_lang)
 
         btn_settings = QPushButton("⚙")
         btn_settings.setObjectName("btnMinimize")
@@ -1418,6 +1434,8 @@ class LiveScribeWindow(QWidget):
             self._transcript_text,
             on_complete=lambda s: self._sig_summary_done.emit(s),
             on_error=lambda e: self._sig_summary_error.emit(str(e)),
+            detected_language=self.transcriber.detected_language,
+            auto_translate_english=self.cfg.transcription.auto_translate_english,
         )
 
     @pyqtSlot(str)
@@ -1688,6 +1706,40 @@ class LiveScribeWindow(QWidget):
         if path:
             Path(path).write_text("\n".join(parts), encoding="utf-8")
             self.status_label.setText(f"Saved: {Path(path).name}")
+
+    # ── Language toggle ─────────────────────────────────────────────────────
+
+    _LANG_CYCLE = ["en", "ko", "ja", "zh", "es", "fr", "de", "pt", "ar", "hi", "ru"]
+
+    _LANG_LABELS = {
+        "en": "English", "ko": "한국어", "ja": "日本語", "zh": "中文",
+        "es": "Español", "fr": "Français", "de": "Deutsch", "pt": "Português",
+        "ar": "العربية", "hi": "हिन्दी", "ru": "Русский",
+    }
+
+    @staticmethod
+    def _get_lang_display(code: str) -> str:
+        return LiveScribeWindow._LANG_LABELS.get(code, code.upper())
+
+    @pyqtSlot()
+    def _toggle_language(self):
+        """Cycle through languages for the transcription/UI locale."""
+        current = self.cfg.ui.ui_language
+        try:
+            idx = self._LANG_CYCLE.index(current)
+            next_lang = self._LANG_CYCLE[(idx + 1) % len(self._LANG_CYCLE)]
+        except ValueError:
+            next_lang = "en"
+
+        self.cfg.ui.ui_language = next_lang
+        self.cfg.transcription.language = None if next_lang == "en" else next_lang
+        self.cfg.save()
+
+        self.transcriber = Transcriber(self.cfg.transcription)
+
+        display = self._get_lang_display(next_lang)
+        self.btn_lang.setToolTip(f"Language: {display}")
+        self.status_label.setText(f"Language set to {display}")
 
     # ── Settings ───────────────────────────────────────────────────────────
 
