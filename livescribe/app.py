@@ -1205,15 +1205,23 @@ class LiveScribeWindow(QWidget):
             self.recorder.start()
             self.record_btn.set_recording(True)
             self._timer.start()
+            self._transcript_text = ""
             self.status_label.setText("Recording…")
             self.btn_transcribe.setEnabled(False)
             self.btn_summarize.setEnabled(False)
             self.btn_play.setEnabled(False)
             self.btn_save_wav.setEnabled(False)
 
-            # Start live transcription if enabled
+            # Start live transcription if enabled (not supported on Windows
+            # where transcription is isolated in a helper subprocess)
             if self.cfg.transcription.live_transcription:
-                self._start_live_transcription()
+                import platform
+                if platform.system() == "Windows":
+                    self.status_label.setText(
+                        "Recording… (live transcription not available on Windows)"
+                    )
+                else:
+                    self._start_live_transcription()
         except Exception as exc:
             self.status_label.setText(f"Mic error: {exc}")
 

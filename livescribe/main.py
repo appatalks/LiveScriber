@@ -20,7 +20,7 @@ def main():
         "--backend",
         choices=["copilot", "local", "ollama-like", "ollama", "openai"],
         default=None,
-        help="Summarization backend (default: copilot)",
+        help="Summarization backend (default: local)",
     )
     parser.add_argument(
         "--theme",
