@@ -22,7 +22,7 @@ QWidget {
     letter-spacing: 1px;
 }
 
-#btnMinimize, #btnClose {
+#btnMinimize, #btnClose, #btnLang {
     background: transparent;
     border: none;
     color: #6c7086;
@@ -180,7 +180,7 @@ QWidget {
 #titleBar { background-color: #e6e9ef; border-bottom: 2px solid #d20f39; }
 #titleLabel { color: #4c4f69; font-size: 15px; font-weight: 700; letter-spacing: 1px; }
 
-#btnMinimize, #btnClose {
+#btnMinimize, #btnClose, #btnLang {
     background: transparent; border: none; color: #8c8fa1;
     font-size: 16px; padding: 4px 10px; border-radius: 4px;
 }

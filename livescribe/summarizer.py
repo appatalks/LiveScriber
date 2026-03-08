@@ -23,6 +23,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "gemma-2-2b-it-Q4_K_M.gguf",
         "size": "2B",
         "ram": "~3 GB RAM",
+        "max_context": 8192,
     },
     "gemma-2-9b-it": {
         "label": "Gemma 2 9B Instruct",
@@ -30,6 +31,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "gemma-2-9b-it-Q4_K_M.gguf",
         "size": "9B",
         "ram": "~9 GB RAM",
+        "max_context": 8192,
     },
     "llama-3.1-4b-instruct": {
         "label": "Llama 3.1 ELM Turbo 4B Instruct",
@@ -37,6 +39,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "Llama3.1-elm-turbo-4B-instruct.Q4_K_M.gguf",
         "size": "4B",
         "ram": "~5 GB RAM",
+        "max_context": 8192,
     },
     "mistral-nemo-12b-instruct": {
         "label": "Mistral Nemo 12B Instruct",
@@ -44,6 +47,7 @@ LOCAL_MODEL_CATALOG = {
         "filename": "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf",
         "size": "12B",
         "ram": "~12 GB RAM",
+        "max_context": 32768,
     },
 }
 
@@ -60,33 +64,87 @@ class Summarizer:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
-    def summarize(self, transcript: str) -> str:
-        """Summarize transcript text. Returns the summary string."""
+    def summarize(self, transcript: str, detected_language: str | None = None,
+                  auto_translate_english: bool = False) -> str:
+        """Summarize transcript text. Returns the summary string.
+
+        When auto_translate_english is True and the detected language is not
+        English, produces a bilingual summary: native language first, then
+        an English translation appended below.
+        """
         if not transcript.strip():
             return ""
 
+        from livescribe.i18n import get_system_prompt
+
+        # Use a fully translated system prompt for the detected language
+        original_prompt = self.cfg.system_prompt
+        is_non_english = detected_language and detected_language != "en"
+        self._current_lang = detected_language or "en"
+        self._auto_translate = auto_translate_english
+
+        if is_non_english:
+            self.cfg.system_prompt = get_system_prompt(detected_language)
+
         backend = self.normalize_backend_name(self.cfg.backend)
 
-        if backend == "copilot":
-            return self._summarize_copilot(transcript)
-        elif backend == "local":
-            return self._summarize_local(transcript)
-        elif backend == "openai":
-            return self._summarize_openai(transcript)
-        else:
-            return self._summarize_ollama(transcript)
+        try:
+            if backend == "copilot":
+                summary = self._summarize_copilot(transcript)
+            elif backend == "local":
+                summary = self._summarize_local(transcript)
+            elif backend == "openai":
+                summary = self._summarize_openai(transcript)
+            else:
+                summary = self._summarize_ollama(transcript)
+        finally:
+            self.cfg.system_prompt = original_prompt
+
+        # Bilingual: append English summary when auto-translate is on and source isn't English
+        # Copilot handles this in a single prompt, so skip the second pass for it
+        if (auto_translate_english
+                and is_non_english
+                and backend != "copilot"
+                and not summary.startswith("[Local")
+                and not summary.startswith("[Copilot")
+                and not summary.startswith("[Server")
+                and not summary.startswith("[OpenAI")):
+            # Restore original prompt for the English translation pass
+            self.cfg.system_prompt = original_prompt
+            english_prompt = (
+                "Translate the following summary into English. "
+                "Output only the English translation, nothing else.\n\n"
+                + summary
+            )
+            if backend == "local":
+                english = self._summarize_local(english_prompt)
+            elif backend == "openai":
+                english = self._summarize_openai(english_prompt)
+            else:
+                english = self._summarize_ollama(english_prompt)
+
+            if english and not english.startswith("["):
+                summary += "\n\n---\n\n**English Summary:**\n\n" + english
+
+        return summary
 
     def summarize_async(
         self,
         transcript: str,
         on_complete: Callable[[str], None] | None = None,
         on_error: Callable[[Exception], None] | None = None,
+        detected_language: str | None = None,
+        auto_translate_english: bool = False,
     ) -> threading.Thread:
         """Run summarization in a background thread."""
 
         def _worker():
             try:
-                result = self.summarize(transcript)
+                result = self.summarize(
+                    transcript,
+                    detected_language=detected_language,
+                    auto_translate_english=auto_translate_english,
+                )
                 if on_complete:
                     on_complete(result)
             except Exception as exc:
@@ -101,14 +159,19 @@ class Summarizer:
 
     def _summarize_copilot(self, transcript: str) -> str:
         """Summarize via Copilot CLI (copilot --prompt)."""
+        from livescribe.i18n import get_copilot_prompt
+
+        # Use Copilot-specific prompt that frames the task as documentation
+        # generation, which Copilot accepts (unlike generic note-taking prompts)
+        lang = getattr(self, '_current_lang', 'en') or 'en'
+        append_english = getattr(self, '_auto_translate', False)
+        copilot_prompt = get_copilot_prompt(lang, append_english=append_english) + transcript
+
         command = self._build_copilot_command(
             "--model",
             self.cfg.copilot_model,
             "--prompt",
-            (
-                f"{self.cfg.system_prompt}\n\n"
-                f"Here is the meeting transcript:\n\n{transcript}"
-            ),
+            copilot_prompt,
             "--allow-all-tools",
             "--no-color",
         )
@@ -303,8 +366,27 @@ class Summarizer:
                 "Open Settings, choose the Local backend, and click Download."
             )
 
+        # Auto-scale context window based on model capability
+        effective_ctx = self._effective_context_window()
+
+        # Truncate transcript to avoid overflowing the context window.
+        # Non-English text uses ~2-4x more tokens per character.
+        max_chars = effective_ctx * 2
+        if len(transcript) > max_chars:
+            transcript = transcript[:max_chars] + "\n\n[...transcript truncated to fit context window]"
+
         try:
             llm = self._ensure_local_llm(model_path)
+
+            # Enable fault handler to get a traceback on segfaults instead of silent crash
+            import faulthandler
+            import sys
+            if hasattr(sys, "stderr") and sys.stderr is not None and hasattr(sys.stderr, "fileno"):
+                try:
+                    faulthandler.enable()
+                except Exception:
+                    pass
+
             messages = [
                 {"role": "system", "content": self.cfg.system_prompt},
                 {
@@ -342,11 +424,21 @@ class Summarizer:
                 "Install the local backend runtime or use Copilot, Ollama, or OpenAI instead."
             )
         except Exception as exc:
-            return f"[Local summarization error] {exc}"
+            return (
+                f"[Local summarization error] {exc}\n\n"
+                "If this keeps happening with non-English text, try switching to "
+                "Copilot, Ollama, or OpenAI backend in Settings."
+            )
 
     def _ensure_local_llm(self, model_path: Path):
         """Load the configured local GGUF model if needed."""
-        if self._local_llm is not None and self._local_model_key == self.cfg.local_model_key:
+        effective_ctx = self._effective_context_window()
+        needs_reload = (
+            self._local_llm is None
+            or self._local_model_key != self.cfg.local_model_key
+            or getattr(self, "_loaded_ctx", None) != effective_ctx
+        )
+        if not needs_reload:
             return self._local_llm
 
         from llama_cpp import Llama
@@ -354,13 +446,26 @@ class Summarizer:
         threads = max(1, (os.cpu_count() or 4) - 1)
         self._local_llm = Llama(
             model_path=str(model_path),
-            n_ctx=self.cfg.local_context_window,
+            n_ctx=effective_ctx,
             n_threads=threads,
             n_gpu_layers=self.cfg.local_gpu_layers,
             verbose=False,
         )
         self._local_model_key = self.cfg.local_model_key
+        self._loaded_ctx = effective_ctx
         return self._local_llm
+
+    def _effective_context_window(self) -> int:
+        """Return the context window to use, capped at the model's max_context.
+
+        The effective context window will not exceed the model's catalog
+        max_context value. If the user configures a smaller context window,
+        that smaller value is used instead.
+        """
+        user_ctx = self.cfg.local_context_window
+        meta = LOCAL_MODEL_CATALOG.get(self.cfg.local_model_key, {})
+        model_max = meta.get("max_context", user_ctx)
+        return min(user_ctx, model_max) if user_ctx > 0 else model_max
 
     @staticmethod
     def get_local_model_options() -> dict[str, str]:

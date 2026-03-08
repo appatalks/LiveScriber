@@ -20,6 +20,7 @@ class TestConfigDefaults:
         assert cfg.beam_size == 5
         assert cfg.chunk_minutes == 10
         assert cfg.live_transcription is False
+        assert cfg.auto_translate_english is False
 
     def test_summarizer_defaults(self):
         cfg = SummarizerConfig()
@@ -40,6 +41,7 @@ class TestConfigDefaults:
         assert cfg.opacity == 0.95
         assert cfg.always_on_top is True
         assert cfg.theme == "dark"
+        assert cfg.ui_language == "en"
 
 
 class TestConfigMigration:

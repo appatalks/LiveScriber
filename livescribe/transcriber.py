@@ -26,6 +26,12 @@ class Transcriber:
         self.cfg = config
         self._local_model = None
         self._lock = threading.Lock()
+        self._last_detected_language: str | None = None
+
+    @property
+    def detected_language(self) -> str | None:
+        """Return the language code detected by the last transcription, or None."""
+        return self._last_detected_language
 
     # ── Lazy model loading ─────────────────────────────────────────────────
 
@@ -121,6 +127,7 @@ class Transcriber:
         self._ensure_local_model()
 
         segments, info = self._transcribe_segments(str(audio_path))
+        self._last_detected_language = getattr(info, "language", None)
 
         parts: list[str] = []
         for segment in segments:
@@ -241,6 +248,7 @@ class Transcriber:
     ) -> str:
         """Transcribe a single chunk of audio."""
         segments, info = self._transcribe_segments(audio)
+        self._last_detected_language = getattr(info, "language", None)
 
         parts: list[str] = []
         for segment in segments:

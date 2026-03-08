@@ -47,6 +47,7 @@ from livescribe.recorder import Recorder
 from livescribe.transcriber import Transcriber
 from livescribe.summarizer import Summarizer
 from livescribe.styles import get_theme
+from livescribe.i18n import t
 
 
 def _resolve_assets_dir() -> Path | None:
@@ -197,10 +198,15 @@ class SettingsDialog(QDialog):
 
     _sig_update_result = pyqtSignal(str)
 
+    def _t(self, key: str) -> str:
+        """Shorthand for translating a UI string key."""
+        return t(key, self._ui_lang)
+
     def __init__(self, config: AppConfig, parent=None):
         super().__init__(parent)
         self.cfg = config
-        self.setWindowTitle("LiveScribe Settings")
+        self._ui_lang = config.ui.ui_language
+        self.setWindowTitle(self._t("settings_title"))
         self.setMinimumWidth(440)
         self.setMinimumHeight(860)
         self._downloading_local_model = False
@@ -227,10 +233,10 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(settings_widget)
         layout.setSpacing(12)
         settings_scroll.setWidget(settings_widget)
-        self._tabs.addTab(settings_scroll, "Settings")
+        self._tabs.addTab(settings_scroll, self._t("settings"))
 
         # ── Transcription settings ─────────────────────────────────────
-        tx_group = QGroupBox("Transcription")
+        tx_group = QGroupBox(self._t("grp_transcription"))
         tx_form = QFormLayout(tx_group)
 
         self.model_combo = QComboBox()
@@ -238,13 +244,13 @@ class SettingsDialog(QDialog):
             "distil-large-v3", "large-v3", "medium", "small", "base", "tiny",
         ])
         self.model_combo.setCurrentText(config.transcription.model_size)
-        tx_form.addRow("Whisper model:", self.model_combo)
+        tx_form.addRow(self._t("whisper_model"), self.model_combo)
 
         self.lang_edit = QLineEdit(config.transcription.language or "")
-        self.lang_edit.setPlaceholderText("auto-detect (leave empty)")
-        tx_form.addRow("Language:", self.lang_edit)
+        self.lang_edit.setPlaceholderText(self._t("auto_detect"))
+        tx_form.addRow(self._t("language"), self.lang_edit)
 
-        self.live_transcription_check = QCheckBox("Live transcription while recording (experimental)")
+        self.live_transcription_check = QCheckBox(self._t("live_transcription_label"))
         self.live_transcription_check.setChecked(config.transcription.live_transcription)
         self.live_transcription_check.setToolTip(
             "Stream a rough transcription while recording. Results may be incomplete — "
@@ -252,22 +258,37 @@ class SettingsDialog(QDialog):
         )
         tx_form.addRow(self.live_transcription_check)
 
+        self.auto_translate_check = QCheckBox(self._t("auto_translate_label"))
+        self.auto_translate_check.setChecked(config.transcription.auto_translate_english)
+        self.auto_translate_check.setToolTip(
+            "When enabled, an English translation is appended to the summary. "
+            "The transcript stays in the original language."
+        )
+        tx_form.addRow(self.auto_translate_check)
+
         layout.addWidget(tx_group)
 
         # ── Summarization settings ─────────────────────────────────────
-        sum_group = QGroupBox("Summarization")
+        sum_group = QGroupBox(self._t("grp_summarization"))
         sum_form = QFormLayout(sum_group)
 
         self.sum_backend_combo = QComboBox()
         self.sum_backend_combo.addItems(["copilot", "local", "ollama-like", "openai"])
         self.sum_backend_combo.setCurrentText(Summarizer.normalize_backend_name(config.summarizer.backend))
         self.sum_backend_combo.currentTextChanged.connect(self._on_backend_changed)
-        sum_form.addRow("Backend:", self.sum_backend_combo)
+        sum_form.addRow(self._t("backend"), self.sum_backend_combo)
 
         self.prompt_edit = QTextEdit()
-        self.prompt_edit.setPlainText(config.summarizer.system_prompt)
+        from livescribe.i18n import get_system_prompt
+        # Show the persisted prompt, falling back to the localized default
+        saved_prompt = config.summarizer.system_prompt
+        default_en = get_system_prompt("en")
+        if saved_prompt == default_en or not saved_prompt:
+            self.prompt_edit.setPlainText(get_system_prompt(self._ui_lang))
+        else:
+            self.prompt_edit.setPlainText(saved_prompt)
         self.prompt_edit.setMaximumHeight(100)
-        sum_form.addRow("System prompt:", self.prompt_edit)
+        sum_form.addRow(self._t("system_prompt"), self.prompt_edit)
 
         layout.addWidget(sum_group)
 
@@ -366,17 +387,17 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.openai_group)
 
         # ── Audio settings ─────────────────────────────────────────────
-        audio_group = QGroupBox("Audio")
+        audio_group = QGroupBox(self._t("grp_audio"))
         audio_form = QFormLayout(audio_group)
 
-        self.capture_sys = QCheckBox("Capture system audio (speakers)")
+        self.capture_sys = QCheckBox(self._t("capture_system_audio"))
         self.capture_sys.setChecked(config.audio.capture_system_audio)
         audio_form.addRow(self.capture_sys)
 
         layout.addWidget(audio_group)
 
         # ── UI settings ───────────────────────────────────────────────
-        ui_group = QGroupBox("Appearance")
+        ui_group = QGroupBox(self._t("grp_appearance"))
         ui_form = QFormLayout(ui_group)
 
         self.theme_combo = QComboBox()
@@ -387,17 +408,17 @@ class SettingsDialog(QDialog):
         theme_row.addWidget(self.theme_combo)
         self._theme_pro_label = QLabel("")
         theme_row.addWidget(self._theme_pro_label)
-        ui_form.addRow("Theme:", theme_row)
+        ui_form.addRow(self._t("theme"), theme_row)
         self._refresh_theme_lock()
 
-        self.on_top_check = QCheckBox("Always on top")
+        self.on_top_check = QCheckBox(self._t("always_on_top"))
         self.on_top_check.setChecked(config.ui.always_on_top)
         ui_form.addRow(self.on_top_check)
 
         self.opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.opacity_slider.setRange(50, 100)
         self.opacity_slider.setValue(int(config.ui.opacity * 100))
-        ui_form.addRow("Opacity:", self.opacity_slider)
+        ui_form.addRow(self._t("opacity"), self.opacity_slider)
 
         layout.addWidget(ui_group)
 
@@ -535,7 +556,7 @@ class SettingsDialog(QDialog):
         about_layout.addWidget(pro_group)
         about_layout.addStretch()
 
-        self._tabs.addTab(about_widget, "About")
+        self._tabs.addTab(about_widget, self._t("about"))
 
         # ── Buttons ────────────────────────────────────────────────────
         buttons = QDialogButtonBox(
@@ -553,6 +574,7 @@ class SettingsDialog(QDialog):
         lang = self.lang_edit.text().strip()
         self.cfg.transcription.language = lang if lang else None
         self.cfg.transcription.live_transcription = self.live_transcription_check.isChecked()
+        self.cfg.transcription.auto_translate_english = self.auto_translate_check.isChecked()
 
         self.cfg.summarizer.backend = self.sum_backend_combo.currentText()
         self.cfg.summarizer.copilot_model = self.copilot_model_combo.currentText()
@@ -821,6 +843,7 @@ class LiveScribeWindow(QWidget):
         super().__init__()
         self.cfg = config
         self._drag_pos: QPoint | None = None
+        self._ui_lang = config.ui.ui_language
 
         icon_path = _resolve_app_icon_path()
         if icon_path:
@@ -879,6 +902,10 @@ class LiveScribeWindow(QWidget):
         # Apply theme
         self.setStyleSheet(get_theme(config.ui.theme))
 
+    def _t(self, key: str) -> str:
+        """Shorthand for translating a UI string key."""
+        return t(key, self._ui_lang)
+
     # ── UI Construction ────────────────────────────────────────────────────
 
     def _install_filter_recursive(self, widget):
@@ -912,6 +939,13 @@ class LiveScribeWindow(QWidget):
         btn_settings.setToolTip("Settings")
         btn_settings.clicked.connect(self._open_settings)
         tb_layout.addWidget(btn_settings)
+
+        self.btn_lang = QPushButton("🌐")
+        self.btn_lang.setObjectName("btnLang")
+        self.btn_lang.setFixedSize(32, 32)
+        self.btn_lang.setToolTip(f"Transcription language: {self._get_lang_display(self.cfg.ui.ui_language)}")
+        self.btn_lang.clicked.connect(self._show_language_menu)
+        tb_layout.addWidget(self.btn_lang)
 
         btn_minimize = QPushButton("─")
         btn_minimize.setObjectName("btnMinimize")
@@ -962,11 +996,11 @@ class LiveScribeWindow(QWidget):
         self.btn_hist_prev.setObjectName("secondaryBtn")
         self.btn_hist_prev.setFixedWidth(32)
         self.btn_hist_prev.setEnabled(False)
-        self.btn_hist_prev.setToolTip("Previous session")
+        self.btn_hist_prev.setToolTip(self._t("previous_session"))
         self.btn_hist_prev.clicked.connect(self._hist_prev)
         hist_row.addWidget(self.btn_hist_prev)
 
-        self.hist_label = QLabel("New session")
+        self.hist_label = QLabel(self._t("new_session"))
         self.hist_label.setObjectName("statusLabel")
         self.hist_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hist_row.addWidget(self.hist_label)
@@ -974,19 +1008,19 @@ class LiveScribeWindow(QWidget):
         self.btn_hist_next = QPushButton("▶")
         self.btn_hist_next.setObjectName("secondaryBtn")
         self.btn_hist_next.setFixedWidth(32)
-        self.btn_hist_next.setToolTip("Next / New session")
+        self.btn_hist_next.setToolTip(self._t("next_session"))
         self.btn_hist_next.clicked.connect(self._hist_next)
         hist_row.addWidget(self.btn_hist_next)
 
         cl.addLayout(hist_row)
 
         # Transcript section
-        self.transcript_section = CollapsibleSection("Transcription", "transcriptArea")
+        self.transcript_section = CollapsibleSection(self._t("transcription"), "transcriptArea")
         self.transcript_section.expand()
         cl.addWidget(self.transcript_section)
 
         # Summary section
-        self.summary_section = CollapsibleSection("Summary && Notes", "summaryArea", editable=True)
+        self.summary_section = CollapsibleSection(self._t("summary_notes"), "summaryArea", editable=True)
         self.summary_section.expand()
         cl.addWidget(self.summary_section)
 
@@ -994,13 +1028,13 @@ class LiveScribeWindow(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        self.btn_transcribe = QPushButton("Transcribe")
+        self.btn_transcribe = QPushButton(self._t("transcribe"))
         self.btn_transcribe.setObjectName("actionBtn")
         self.btn_transcribe.setEnabled(False)
         self.btn_transcribe.clicked.connect(self._start_transcription)
         btn_row.addWidget(self.btn_transcribe)
 
-        self.btn_summarize = QPushButton("Summarize")
+        self.btn_summarize = QPushButton(self._t("summarize"))
         self.btn_summarize.setObjectName("actionBtn")
         self.btn_summarize.setEnabled(False)
         self.btn_summarize.clicked.connect(self._start_summarization)
@@ -1012,17 +1046,17 @@ class LiveScribeWindow(QWidget):
         btn_row2 = QHBoxLayout()
         btn_row2.setSpacing(8)
 
-        self.btn_import = QPushButton("Import Audio")
+        self.btn_import = QPushButton(self._t("import_audio"))
         self.btn_import.setObjectName("secondaryBtn")
         self.btn_import.clicked.connect(self._import_audio)
         btn_row2.addWidget(self.btn_import)
 
-        self.btn_copy = QPushButton("Copy All")
+        self.btn_copy = QPushButton(self._t("copy_all"))
         self.btn_copy.setObjectName("secondaryBtn")
         self.btn_copy.clicked.connect(self._copy_all)
         btn_row2.addWidget(self.btn_copy)
 
-        self.btn_save = QPushButton("Save MD")
+        self.btn_save = QPushButton(self._t("save_md"))
         self.btn_save.setObjectName("secondaryBtn")
         self.btn_save.clicked.connect(self._save_markdown)
         btn_row2.addWidget(self.btn_save)
@@ -1033,13 +1067,13 @@ class LiveScribeWindow(QWidget):
         btn_row3 = QHBoxLayout()
         btn_row3.setSpacing(8)
 
-        self.btn_play = QPushButton("▶ Play")
+        self.btn_play = QPushButton(self._t("play"))
         self.btn_play.setObjectName("secondaryBtn")
         self.btn_play.setEnabled(False)
         self.btn_play.clicked.connect(self._play_audio)
         btn_row3.addWidget(self.btn_play)
 
-        self.btn_save_wav = QPushButton("Save WAV")
+        self.btn_save_wav = QPushButton(self._t("save_wav"))
         self.btn_save_wav.setObjectName("secondaryBtn")
         self.btn_save_wav.setEnabled(False)
         self.btn_save_wav.clicked.connect(self._save_wav)
@@ -1051,7 +1085,7 @@ class LiveScribeWindow(QWidget):
 
         # Status
         backend_label = self.cfg.summarizer.backend.capitalize()
-        self.status_label = QLabel(f"Ready — {backend_label} summarizer")
+        self.status_label = QLabel(f"{self._t('ready')} — {backend_label}")
         self.status_label.setObjectName("statusLabel")
         cl.addWidget(self.status_label)
 
@@ -1406,18 +1440,24 @@ class LiveScribeWindow(QWidget):
     @pyqtSlot()
     def _start_summarization(self):
         if not self._transcript_text:
-            self.status_label.setText("Transcribe first before summarizing")
+            self.status_label.setText(self._t("transcribe_first"))
             return
 
         self.btn_summarize.setEnabled(False)
         self.summary_section.clear()
         self.summary_section.expand()
-        self.status_label.setText("Generating summary…")
+        self.status_label.setText(self._t("generating_summary"))
+
+        # Always use the 🌐 selected language for summarization — that's the
+        # user's explicit choice for what language they want the output in
+        lang = self.cfg.ui.ui_language
 
         self.summarizer.summarize_async(
             self._transcript_text,
             on_complete=lambda s: self._sig_summary_done.emit(s),
             on_error=lambda e: self._sig_summary_error.emit(str(e)),
+            detected_language=lang,
+            auto_translate_english=self.cfg.transcription.auto_translate_english,
         )
 
     @pyqtSlot(str)
@@ -1511,7 +1551,7 @@ class LiveScribeWindow(QWidget):
         idx = self._history_idx
 
         if total == 0 or idx >= total:
-            label = f"New  ({total} saved)" if total > 0 else "New session"
+            label = f"{self._t('new_session')}  ({total})" if total > 0 else self._t("new_session")
             self.hist_label.setText(label)
             self.btn_hist_prev.setEnabled(total > 0)
             self.btn_hist_next.setEnabled(False)
@@ -1689,6 +1729,60 @@ class LiveScribeWindow(QWidget):
             Path(path).write_text("\n".join(parts), encoding="utf-8")
             self.status_label.setText(f"Saved: {Path(path).name}")
 
+    # ── Language toggle ─────────────────────────────────────────────────────
+
+    _LANG_CYCLE = ["en", "ko", "ja", "uk", "es", "fr", "de", "pt", "ar"]
+
+    _LANG_LABELS = {
+        "en": "English", "ko": "한국어", "ja": "日本語", "uk": "Українська",
+        "es": "Español", "fr": "Français", "de": "Deutsch", "pt": "Português",
+        "ar": "العربية",
+    }
+
+    @staticmethod
+    def _get_lang_display(code: str) -> str:
+        return LiveScribeWindow._LANG_LABELS.get(code, code.upper())
+
+    @pyqtSlot()
+    def _show_language_menu(self):
+        """Show a dropdown menu to select the transcription language."""
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+
+        menu = QMenu(self)
+        menu.setStyleSheet(self.styleSheet())
+        current = self.cfg.transcription.language or "en"
+
+        for code in self._LANG_CYCLE:
+            label = self._get_lang_display(code)
+            prefix = "✓ " if code == current else "   "
+            action = QAction(f"{prefix}{label}", menu)
+            action.setData(code)
+            action.triggered.connect(lambda checked, c=code: self._set_language(c))
+            menu.addAction(action)
+
+        menu.exec(self.btn_lang.mapToGlobal(self.btn_lang.rect().bottomLeft()))
+
+    def _set_language(self, code: str):
+        """Set both transcription and UI display language from the 🌐 button."""
+        self.cfg.transcription.language = None if code == "en" else code
+        self.cfg.ui.ui_language = code
+        self._ui_lang = code
+
+        # distil-large-v3 only supports English well — auto-upgrade for other languages
+        if code != "en" and self.cfg.transcription.model_size.startswith("distil"):
+            self.cfg.transcription.model_size = "large-v3"
+
+        # Switch back to distil when returning to English for faster transcription
+        if code == "en" and self.cfg.transcription.model_size == "large-v3":
+            self.cfg.transcription.model_size = "distil-large-v3"
+
+        self.cfg.save()
+        self.transcriber = Transcriber(self.cfg.transcription)
+
+        # Rebuild UI with new language
+        self._rebuild_ui()
+
     # ── Settings ───────────────────────────────────────────────────────────
 
     @pyqtSlot()
@@ -1715,6 +1809,24 @@ class LiveScribeWindow(QWidget):
 
             backend_label = self.cfg.summarizer.backend.capitalize()
             self.status_label.setText(f"Settings saved — {backend_label} summarizer")
+
+    def _rebuild_ui(self):
+        """Update all translatable labels/buttons to the current UI language."""
+        display = self._get_lang_display(self._ui_lang)
+        self.btn_lang.setToolTip(f"Language: {display}")
+        self.btn_transcribe.setText(self._t("transcribe"))
+        self.btn_summarize.setText(self._t("summarize"))
+        self.btn_import.setText(self._t("import_audio"))
+        self.btn_copy.setText(self._t("copy_all"))
+        self.btn_save.setText(self._t("save_md"))
+        self.btn_save_wav.setText(self._t("save_wav"))
+        self.btn_play.setText(self._t("play"))
+        self.btn_hist_prev.setToolTip(self._t("previous_session"))
+        self.btn_hist_next.setToolTip(self._t("next_session"))
+        self.transcript_section.toggle_btn.setText(f"▼  {self._t('transcription')}")
+        self.summary_section.toggle_btn.setText(f"▼  {self._t('summary_notes')}")
+        self.hist_label.setText(self._t("new_session"))
+        self.status_label.setText(f"{self._t('ready')} — {display}")
 
 
 def run_app(config: AppConfig | None = None):
