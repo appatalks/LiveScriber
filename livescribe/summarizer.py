@@ -64,12 +64,6 @@ class Summarizer:
 
     # ── Public API ─────────────────────────────────────────────────────────
 
-    _LANG_NAMES = {
-        "en": "English", "ko": "Korean", "ja": "Japanese", "uk": "Ukrainian",
-        "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
-        "ar": "Arabic",
-    }
-
     def summarize(self, transcript: str, detected_language: str | None = None,
                   auto_translate_english: bool = False) -> str:
         """Summarize transcript text. Returns the summary string.
@@ -81,29 +75,14 @@ class Summarizer:
         if not transcript.strip():
             return ""
 
-        # Temporarily adjust the system prompt to request output in the right language
+        from livescribe.i18n import get_system_prompt
+
+        # Use a fully translated system prompt for the detected language
         original_prompt = self.cfg.system_prompt
         is_non_english = detected_language and detected_language != "en"
 
         if is_non_english:
-            lang_name = self._LANG_NAMES.get(detected_language, detected_language)
-            if auto_translate_english:
-                # When auto-translate is on, still generate native first
-                self.cfg.system_prompt = (
-                    f"CRITICAL INSTRUCTION: You MUST respond entirely in {lang_name}. "
-                    f"Every word of your output must be in {lang_name}. "
-                    f"Do NOT use English at all.\n\n"
-                    f"{original_prompt}\n\n"
-                    f"REMINDER: Your entire response must be written in {lang_name}."
-                )
-            else:
-                self.cfg.system_prompt = (
-                    f"CRITICAL INSTRUCTION: You MUST respond entirely in {lang_name}. "
-                    f"Every word of your output must be in {lang_name}. "
-                    f"Do NOT use English at all.\n\n"
-                    f"{original_prompt}\n\n"
-                    f"REMINDER: Your entire response must be written in {lang_name}."
-                )
+            self.cfg.system_prompt = get_system_prompt(detected_language)
 
         backend = self.normalize_backend_name(self.cfg.backend)
 
