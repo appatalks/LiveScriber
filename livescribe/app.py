@@ -1442,8 +1442,9 @@ class LiveScribeWindow(QWidget):
         self.summary_section.expand()
         self.status_label.setText("Generating summary…")
 
-        # Use detected language from transcription, or fall back to the 🌐 selected language
-        lang = self.transcriber.detected_language or self.cfg.ui.ui_language
+        # Always use the 🌐 selected language for summarization — that's the
+        # user's explicit choice for what language they want the output in
+        lang = self.cfg.ui.ui_language
 
         self.summarizer.summarize_async(
             self._transcript_text,
