@@ -326,6 +326,8 @@ class Transcriber:
         env = os.environ.copy()
         env["LIVESCRIBE_TRANSCRIBE_SUBPROCESS"] = "1"
         env.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+        env["HF_HUB_DISABLE_XET"] = "1"
+        env["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if platform.system() == "Windows" else 0
 
@@ -370,9 +372,9 @@ class Transcriber:
                 "--model-size",
                 self.cfg.model_size,
                 "--device",
-                self.cfg.device,
+                "cpu",
                 "--compute-type",
-                self.cfg.compute_type,
+                "int8",
                 "--beam-size",
                 str(self.cfg.beam_size),
                 "--chunk-minutes",
