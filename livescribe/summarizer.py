@@ -86,8 +86,11 @@ class Summarizer:
         if detected_language and detected_language != "en" and not auto_translate_english:
             lang_name = self._LANG_NAMES.get(detected_language, detected_language)
             self.cfg.system_prompt = (
-                f"IMPORTANT: Respond entirely in {lang_name}. "
-                f"Do not use English.\n\n{original_prompt}"
+                f"CRITICAL INSTRUCTION: You MUST respond entirely in {lang_name}. "
+                f"Every word of your output must be in {lang_name}. "
+                f"Do NOT use English at all.\n\n"
+                f"{original_prompt}\n\n"
+                f"REMINDER: Your entire response must be written in {lang_name}."
             )
 
         backend = self.normalize_backend_name(self.cfg.backend)
