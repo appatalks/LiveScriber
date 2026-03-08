@@ -339,8 +339,19 @@ class Summarizer:
                 "Open Settings, choose the Local backend, and click Download."
             )
 
+        # Truncate transcript to avoid overflowing the context window.
+        # Non-English text uses ~2-4x more tokens per character.
+        max_chars = self.cfg.local_context_window * 2
+        if len(transcript) > max_chars:
+            transcript = transcript[:max_chars] + "\n\n[...transcript truncated to fit context window]"
+
         try:
             llm = self._ensure_local_llm(model_path)
+
+            # Enable fault handler to get a traceback on segfaults instead of silent crash
+            import faulthandler
+            faulthandler.enable()
+
             messages = [
                 {"role": "system", "content": self.cfg.system_prompt},
                 {
@@ -378,7 +389,11 @@ class Summarizer:
                 "Install the local backend runtime or use Copilot, Ollama, or OpenAI instead."
             )
         except Exception as exc:
-            return f"[Local summarization error] {exc}"
+            return (
+                f"[Local summarization error] {exc}\n\n"
+                "If this keeps happening with non-English text, try switching to "
+                "Copilot, Ollama, or OpenAI backend in Settings."
+            )
 
     def _ensure_local_llm(self, model_path: Path):
         """Load the configured local GGUF model if needed."""

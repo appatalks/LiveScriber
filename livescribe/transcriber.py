@@ -93,12 +93,14 @@ class Transcriber:
             return ""
 
         self._ensure_local_model()
+        task = "translate" if self.cfg.auto_translate_english else "transcribe"
         try:
             segments, _ = self._local_model.transcribe(
                 audio,
                 beam_size=3,  # balance speed vs accuracy for live
                 language=self.cfg.language,
                 vad_filter=False,  # we pre-filter silence; let Whisper see everything
+                task=task,
             )
             parts = [s.text.strip() for s in segments if s.text.strip()]
             return " ".join(parts)

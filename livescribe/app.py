@@ -915,19 +915,19 @@ class LiveScribeWindow(QWidget):
 
         tb_layout.addStretch()
 
-        self.btn_lang = QPushButton("🌐")
-        self.btn_lang.setObjectName("btnMinimize")
-        self.btn_lang.setFixedSize(32, 32)
-        self.btn_lang.setToolTip(f"Language: {self._get_lang_display(config.ui.ui_language)}")
-        self.btn_lang.clicked.connect(self._toggle_language)
-        tb_layout.addWidget(self.btn_lang)
-
         btn_settings = QPushButton("⚙")
         btn_settings.setObjectName("btnMinimize")
         btn_settings.setFixedSize(32, 32)
         btn_settings.setToolTip("Settings")
         btn_settings.clicked.connect(self._open_settings)
         tb_layout.addWidget(btn_settings)
+
+        self.btn_lang = QPushButton("🌐")
+        self.btn_lang.setObjectName("btnMinimize")
+        self.btn_lang.setFixedSize(32, 32)
+        self.btn_lang.setToolTip(f"Transcription language: {self._get_lang_display(self.cfg.ui.ui_language)}")
+        self.btn_lang.clicked.connect(self._show_language_menu)
+        tb_layout.addWidget(self.btn_lang)
 
         btn_minimize = QPushButton("─")
         btn_minimize.setObjectName("btnMinimize")
@@ -1709,12 +1709,12 @@ class LiveScribeWindow(QWidget):
 
     # ── Language toggle ─────────────────────────────────────────────────────
 
-    _LANG_CYCLE = ["en", "ko", "ja", "zh", "es", "fr", "de", "pt", "ar", "hi", "ru"]
+    _LANG_CYCLE = ["en", "ko", "ja", "uk", "es", "fr", "de", "pt", "ar"]
 
     _LANG_LABELS = {
-        "en": "English", "ko": "한국어", "ja": "日本語", "zh": "中文",
+        "en": "English", "ko": "한국어", "ja": "日本語", "uk": "Українська",
         "es": "Español", "fr": "Français", "de": "Deutsch", "pt": "Português",
-        "ar": "العربية", "hi": "हिन्दी", "ru": "Русский",
+        "ar": "العربية",
     }
 
     @staticmethod
@@ -1722,24 +1722,48 @@ class LiveScribeWindow(QWidget):
         return LiveScribeWindow._LANG_LABELS.get(code, code.upper())
 
     @pyqtSlot()
-    def _toggle_language(self):
-        """Cycle through languages for the transcription/UI locale."""
+    def _show_language_menu(self):
+        """Show a dropdown menu to select the transcription language."""
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+
+        menu = QMenu(self)
+        menu.setStyleSheet(self.styleSheet())
         current = self.cfg.ui.ui_language
-        try:
-            idx = self._LANG_CYCLE.index(current)
-            next_lang = self._LANG_CYCLE[(idx + 1) % len(self._LANG_CYCLE)]
-        except ValueError:
-            next_lang = "en"
 
-        self.cfg.ui.ui_language = next_lang
-        self.cfg.transcription.language = None if next_lang == "en" else next_lang
+        for code in self._LANG_CYCLE:
+            label = self._get_lang_display(code)
+            prefix = "✓ " if code == current else "   "
+            action = QAction(f"{prefix}{label}", menu)
+            action.setData(code)
+            action.triggered.connect(lambda checked, c=code: self._set_language(c))
+            menu.addAction(action)
+
+        menu.exec(self.btn_lang.mapToGlobal(self.btn_lang.rect().bottomLeft()))
+
+    def _set_language(self, code: str):
+        """Set the transcription language from the dropdown menu."""
+        self.cfg.ui.ui_language = code
+        self.cfg.transcription.language = None if code == "en" else code
+
+        # distil-large-v3 only supports English well — auto-upgrade for other languages
+        if code != "en" and self.cfg.transcription.model_size.startswith("distil"):
+            self.cfg.transcription.model_size = "large-v3"
+            self.status_label.setText(
+                f"Language: {self._get_lang_display(code)} — switched to large-v3 (distil is English-only)"
+            )
+        else:
+            self.status_label.setText(f"Language set to {self._get_lang_display(code)}")
+
+        # Switch back to distil when returning to English for faster transcription
+        if code == "en" and self.cfg.transcription.model_size == "large-v3":
+            self.cfg.transcription.model_size = "distil-large-v3"
+
         self.cfg.save()
-
         self.transcriber = Transcriber(self.cfg.transcription)
 
-        display = self._get_lang_display(next_lang)
-        self.btn_lang.setToolTip(f"Language: {display}")
-        self.status_label.setText(f"Language set to {display}")
+        display = self._get_lang_display(code)
+        self.btn_lang.setToolTip(f"Transcription language: {display}")
 
     # ── Settings ───────────────────────────────────────────────────────────
 
