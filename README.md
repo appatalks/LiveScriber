@@ -6,17 +6,28 @@
 
 <p align="center">
   <b>Talk. Get notes.</b><br>
-  A floating desktop app that records your voice and turns it into clean, organized notes — automatically.
+  Record your voice and turn it into clean, organized notes — automatically.<br>
+  Available on <b>Windows</b>, <b>macOS</b>, <b>Linux</b>, and <b>Android</b>.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platform">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Desktop">
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white" alt="Android">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
 ---
 
-## 🚀 Get Started
+## � Available Platforms
+
+| Platform | Status | Get It |
+|----------|--------|--------|
+| 🐧🍎🪟 **Desktop** (Windows, macOS, Linux) | ✅ Released | [Download](https://github.com/appatalks/LiveScribe/releases) |
+| 📱 **Android** | 🔧 Coming soon | [Learn more](LiveScribe-Android-README.md) |
+
+---
+
+## 🚀 Get Started (Desktop)
 
 Download the latest version from [**Releases**](https://github.com/appatalks/LiveScribe/releases) and run the installer.
 
@@ -47,7 +58,10 @@ Download the latest version from [**Releases**](https://github.com/appatalks/Liv
 | 🔄 **Session history** | Flip between past recordings with ◀ ▶ |
 | 📂 **Import audio** | Bring in WAV, MP3, M4A, and more |
 | 🎨 **Dark & light themes** | Switch in Settings |
+| 🌐 **Multi-language** | UI and summaries in 9 languages |
 | ⚙️ **Fully configurable** | Model, backend, prompt, opacity — all adjustable |
+
+> 📱 **Android** adds on-device llama.cpp inference, background recording, and audio import with auto-transcoding. [See Android details →](LiveScribe-Android-README.md)
 
 ---
 
@@ -86,6 +100,24 @@ LiveScribe is free and open source. If it's useful to you, consider supporting d
 |---|---|
 | **Bitcoin** | `16CowvxvLSR4BPEP9KJZiR622UU7hGEce5` |
 | **Ethereum** | `0xf75278bd6e2006e6ef4847c9a9293e509ab815c5` |
+
+---
+
+## 🐛 Issues & Feature Requests
+
+This repository is the **central hub** for all LiveScribe platforms. Please file bugs and feature requests here:
+
+- 🖥️ [Desktop issue](https://github.com/appatalks/LiveScribe/issues/new?labels=desktop&title=%5BDesktop%5D+)
+- 📱 [Android issue](https://github.com/appatalks/LiveScribe/issues/new?labels=android&title=%5BAndroid%5D+)
+- 💬 [General discussion](https://github.com/appatalks/LiveScribe/discussions)
+
+---
+
+## 🔒 Privacy
+
+LiveScribe is privacy-first. Transcription always runs on-device. No analytics, no ads, no tracking.
+
+➡️ [**Privacy Policy**](PRIVACY.md)
 
 ---
 
