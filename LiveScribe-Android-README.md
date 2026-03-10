@@ -122,7 +122,6 @@ The Android source is currently in a **private repository**. Please submit all f
 
 - **🐛 Bug reports:** [Open an issue](https://github.com/appatalks/LiveScribe/issues/new?labels=android,bug&template=bug_report.md&title=%5BAndroid%5D+) with the `android` label
 - **💡 Feature requests:** [Open an issue](https://github.com/appatalks/LiveScribe/issues/new?labels=android,enhancement&title=%5BAndroid%5D+) with the `android` label
-- **💬 General discussion:** Use [Discussions](https://github.com/appatalks/LiveScribe/discussions) in the main repo
 
 When reporting bugs, please include:
 - Device model and Android version
