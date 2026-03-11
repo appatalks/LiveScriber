@@ -23,7 +23,8 @@
 | Platform | Status | Get It |
 |----------|--------|--------|
 | 🐧🍎🪟 **Desktop** (Windows, macOS, Linux) | ✅ Released | [Download](https://github.com/appatalks/LiveScriber/releases) |
-| 📱 **Android** | 🔧 Coming soon | [Learn more](LiveScriber-Android-README.md) |
+| 📱 **Android** (Play Store) | 🔜 Coming soon | TBD |
+| 📱 **Android** (Release Candidate) | 🔧 Available | [Latest RC](https://github.com/appatalks/LiveScriber/releases) |
 
 ---
 
