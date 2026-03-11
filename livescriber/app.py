@@ -42,12 +42,12 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 
-from livescribe.config import AppConfig
-from livescribe.recorder import Recorder
-from livescribe.transcriber import Transcriber
-from livescribe.summarizer import Summarizer
-from livescribe.styles import get_theme
-from livescribe.i18n import t
+from livescriber.config import AppConfig
+from livescriber.recorder import Recorder
+from livescriber.transcriber import Transcriber
+from livescriber.summarizer import Summarizer
+from livescriber.styles import get_theme
+from livescriber.i18n import t
 
 
 def _resolve_assets_dir() -> Path | None:
@@ -78,12 +78,12 @@ def _resolve_app_icon_path() -> Path | None:
     if not assets_dir:
         return None
 
-    candidate = assets_dir / "livescribe.ico"
+    candidate = assets_dir / "livescriber.ico"
     return candidate if candidate.exists() else None
 
 
 class RecordButton(QPushButton):
-    """Circular record button with mic icon matching the LiveScribe banner."""
+    """Circular record button with mic icon matching the LiveScriber banner."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -279,7 +279,7 @@ class SettingsDialog(QDialog):
         sum_form.addRow(self._t("backend"), self.sum_backend_combo)
 
         self.prompt_edit = QTextEdit()
-        from livescribe.i18n import get_system_prompt
+        from livescriber.i18n import get_system_prompt
         # Show the persisted prompt, falling back to the localized default
         saved_prompt = config.summarizer.system_prompt
         default_en = get_system_prompt("en")
@@ -427,16 +427,16 @@ class SettingsDialog(QDialog):
         about_layout = QVBoxLayout(about_widget)
         about_layout.setSpacing(12)
 
-        import livescribe
-        version = livescribe.__version__
+        import livescriber
+        version = livescriber.__version__
 
-        project_group = QGroupBox("About LiveScribe")
+        project_group = QGroupBox("About LiveScriber")
         project_form = QFormLayout(project_group)
 
         project_form.addRow("Version:", QLabel(version))
         project_form.addRow("Author:", QLabel("appatalks"))
 
-        repo_label = QLabel('<a href="https://github.com/appatalks/LiveScribe">github.com/appatalks/LiveScribe</a>')
+        repo_label = QLabel('<a href="https://github.com/appatalks/LiveScriber">github.com/appatalks/LiveScriber</a>')
         repo_label.setOpenExternalLinks(True)
         project_form.addRow("Repository:", repo_label)
 
@@ -466,11 +466,11 @@ class SettingsDialog(QDialog):
         about_layout.addWidget(update_group)
 
         # ── Support ───────────────────────────────────────────────────
-        support_group = QGroupBox("Support LiveScribe")
+        support_group = QGroupBox("Support LiveScriber")
         support_form = QFormLayout(support_group)
 
         support_msg = QLabel(
-            "LiveScribe is freeware and open source. If it's useful to you, "
+            "LiveScriber is freeware and open source. If it's useful to you, "
             "please consider supporting development. Activate all features for free below."
         )
         support_msg.setWordWrap(True)
@@ -638,7 +638,7 @@ class SettingsDialog(QDialog):
         downloaded = Summarizer.is_local_model_downloaded(model_key)
         runtime_ready = Summarizer.has_local_runtime()
         if self._downloading_local_model:
-            self.local_model_status.setText("Downloading model into ~/.livescribe/models…")
+            self.local_model_status.setText("Downloading model into ~/.livescriber/models…")
             self.local_download_btn.setText("Downloading…")
             return
 
@@ -749,15 +749,15 @@ class SettingsDialog(QDialog):
             try:
                 import requests
                 resp = requests.get(
-                    "https://api.github.com/repos/appatalks/LiveScribe/releases/latest",
+                    "https://api.github.com/repos/appatalks/LiveScriber/releases/latest",
                     timeout=10,
                     headers={"Accept": "application/vnd.github.v3+json"},
                 )
                 if resp.status_code == 200:
                     data = resp.json()
                     latest = data.get("tag_name", "").lstrip("v")
-                    import livescribe
-                    current = livescribe.__version__
+                    import livescriber
+                    current = livescriber.__version__
                     if latest and latest != current:
                         self._sig_update_result.emit(
                             f"New version available: {latest} (you have {current})\n"
@@ -783,7 +783,7 @@ class SettingsDialog(QDialog):
 
     @staticmethod
     def _generate_license_key() -> str:
-        """Generate a valid LiveScribe license key."""
+        """Generate a valid LiveScriber license key."""
         import hashlib
         import secrets
         import string
@@ -791,7 +791,7 @@ class SettingsDialog(QDialog):
         groups = ["".join(secrets.choice(charset) for _ in range(4)) for _ in range(3)]
         payload = "-".join(groups)
         checksum = hashlib.sha256(
-            ("LiveScribePro:" + payload).encode()
+            ("LiveScriberPro:" + payload).encode()
         ).hexdigest()[:4].upper()
         return f"{payload}-{checksum}"
 
@@ -814,7 +814,7 @@ class SettingsDialog(QDialog):
         QMessageBox.information(
             self, "Activated",
             "All features are now unlocked!\n\n"
-            "If LiveScribe is useful to you, please consider "
+            "If LiveScriber is useful to you, please consider "
             "supporting development with a donation. Thank you!",
         )
 
@@ -829,7 +829,7 @@ class SettingsDialog(QDialog):
             self.theme_combo.setCurrentText("dark")
 
 
-class LiveScribeWindow(QWidget):
+class LiveScriberWindow(QWidget):
     """Main floating window."""
 
     # Signals for thread-safe UI updates
@@ -926,7 +926,7 @@ class LiveScribeWindow(QWidget):
         tb_layout = QHBoxLayout(title_bar)
         tb_layout.setContentsMargins(14, 0, 4, 0)
 
-        title_label = QLabel("Live<span style='color: #f38ba8;'>Scribe</span>")
+        title_label = QLabel("Live<span style='color: #f38ba8;'>Scriber</span>")
         title_label.setObjectName("titleLabel")
         title_label.setTextFormat(Qt.TextFormat.RichText)
         tb_layout.addWidget(title_label)
@@ -1637,12 +1637,12 @@ class LiveScribeWindow(QWidget):
             self.status_label.setText("No audio to save")
             return
 
-        from livescribe.config import APP_DIR
+        from livescriber.config import APP_DIR
         recordings_dir = APP_DIR / "recordings"
         recordings_dir.mkdir(parents=True, exist_ok=True)
 
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = f"livescribe_{ts}.wav"
+        default_name = f"livescriber_{ts}.wav"
 
         path, _ = QFileDialog.getSaveFileName(
             self,
@@ -1696,7 +1696,7 @@ class LiveScribeWindow(QWidget):
 
         parts: list[str] = []
         ts = datetime.datetime.now()
-        parts.append(f"# LiveScribe Notes — {ts.strftime('%B %d, %Y %H:%M')}\n")
+        parts.append(f"# LiveScriber Notes — {ts.strftime('%B %d, %Y %H:%M')}\n")
 
         summary = self.summary_section.content.toPlainText()
         if summary:
@@ -1714,8 +1714,8 @@ class LiveScribeWindow(QWidget):
             parts.append("---\n")
             parts.append(f"*Duration: {mins}m {secs}s*\n")
 
-        default_name = f"livescribe_{ts.strftime('%Y%m%d_%H%M%S')}.md"
-        from livescribe.config import APP_DIR
+        default_name = f"livescriber_{ts.strftime('%Y%m%d_%H%M%S')}.md"
+        from livescriber.config import APP_DIR
         notes_dir = APP_DIR / "notes"
         notes_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1741,7 +1741,7 @@ class LiveScribeWindow(QWidget):
 
     @staticmethod
     def _get_lang_display(code: str) -> str:
-        return LiveScribeWindow._LANG_LABELS.get(code, code.upper())
+        return LiveScriberWindow._LANG_LABELS.get(code, code.upper())
 
     @pyqtSlot()
     def _show_language_menu(self):
@@ -1787,7 +1787,7 @@ class LiveScribeWindow(QWidget):
 
     @pyqtSlot()
     def _open_settings(self):
-        from livescribe.styles import get_theme
+        from livescriber.styles import get_theme
 
         dialog = SettingsDialog(self.cfg, parent=self)
         dialog.setStyleSheet(self.styleSheet())
@@ -1830,18 +1830,18 @@ class LiveScribeWindow(QWidget):
 
 
 def run_app(config: AppConfig | None = None):
-    """Launch the LiveScribe floating window."""
+    """Launch the LiveScriber floating window."""
     if config is None:
         config = AppConfig.load()
 
     app = QApplication(sys.argv)
-    app.setApplicationName("LiveScribe")
+    app.setApplicationName("LiveScriber")
 
     icon_path = _resolve_app_icon_path()
     if icon_path:
         app.setWindowIcon(QIcon(str(icon_path)))
 
-    window = LiveScribeWindow(config)
+    window = LiveScriberWindow(config)
     window.show()
 
     sys.exit(app.exec())

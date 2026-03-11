@@ -14,7 +14,7 @@ from typing import Callable
 import numpy as np
 import sounddevice as sd
 
-from livescribe.config import AudioConfig
+from livescriber.config import AudioConfig
 
 
 class Recorder:

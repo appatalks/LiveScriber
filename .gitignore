@@ -34,7 +34,7 @@ recordings/
 models/
 
 # Config overrides
-livescribe.local.yaml
+livescriber.local.yaml
 
 # Secrets
 .env
@@ -45,4 +45,4 @@ secrets.*
 config.local.json
 
 # User data
-.livescribe/
+.livescriber/

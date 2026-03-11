@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, windows]
     paths:
-      - 'livescribe/**'
+      - 'livescriber/**'
       - 'scripts/build_windows_installer.ps1'
       - 'scripts/windows_launcher.py'
       - 'scripts/windows_transcriber_helper.py'
@@ -48,34 +48,34 @@ jobs:
 
       - name: Verify build outputs
         run: |
-          if (-not (Test-Path "dist\LiveScribe\LiveScribe.exe")) {
-            Write-Error "LiveScribe.exe not found"
+          if (-not (Test-Path "dist\LiveScriber\LiveScriber.exe")) {
+            Write-Error "LiveScriber.exe not found"
             exit 1
           }
-          if (-not (Test-Path "dist\LiveScribe\LiveScribeTranscriber.exe")) {
-            Write-Error "LiveScribeTranscriber.exe not found"
+          if (-not (Test-Path "dist\LiveScriber\LiveScriberTranscriber.exe")) {
+            Write-Error "LiveScriberTranscriber.exe not found"
             exit 1
           }
-          $installer = Get-ChildItem "dist\installer\LiveScribe-Setup-*.exe" -ErrorAction SilentlyContinue
+          $installer = Get-ChildItem "dist\installer\LiveScriber-Setup-*.exe" -ErrorAction SilentlyContinue
           if (-not $installer) {
             Write-Error "Installer .exe not found"
             exit 1
           }
           Write-Host "Build outputs verified:"
-          Write-Host "  LiveScribe.exe: $((Get-Item 'dist\LiveScribe\LiveScribe.exe').Length / 1MB) MB"
-          Write-Host "  LiveScribeTranscriber.exe: $((Get-Item 'dist\LiveScribe\LiveScribeTranscriber.exe').Length / 1MB) MB"
+          Write-Host "  LiveScriber.exe: $((Get-Item 'dist\LiveScriber\LiveScriber.exe').Length / 1MB) MB"
+          Write-Host "  LiveScriberTranscriber.exe: $((Get-Item 'dist\LiveScriber\LiveScriberTranscriber.exe').Length / 1MB) MB"
           Write-Host "  Installer: $($installer.Name) ($([math]::Round($installer.Length / 1MB, 1)) MB)"
 
       - name: Upload app bundle
         uses: actions/upload-artifact@v4
         with:
-          name: LiveScribe-Bundle
-          path: dist/LiveScribe/
+          name: LiveScriber-Bundle
+          path: dist/LiveScriber/
           retention-days: 14
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: LiveScribe-Installer
-          path: dist/installer/LiveScribe-Setup-*.exe
+          name: LiveScriber-Installer
+          path: dist/installer/LiveScriber-Setup-*.exe
           retention-days: 14

@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
-from livescribe.config import AppConfig, AudioConfig, TranscriptionConfig, SummarizerConfig, UIConfig
+from livescriber.config import AppConfig, AudioConfig, TranscriptionConfig, SummarizerConfig, UIConfig
 
 
 class TestConfigDefaults:
@@ -59,7 +59,7 @@ class TestConfigMigration:
             json.dump(data, f)
             tmp = Path(f.name)
 
-        with mock.patch("livescribe.config.CONFIG_PATH", tmp):
+        with mock.patch("livescriber.config.CONFIG_PATH", tmp):
             cfg = AppConfig.load()
             assert cfg.summarizer.backend == "ollama-like"
 
@@ -77,7 +77,7 @@ class TestConfigMigration:
             json.dump(data, f)
             tmp = Path(f.name)
 
-        with mock.patch("livescribe.config.CONFIG_PATH", tmp):
+        with mock.patch("livescriber.config.CONFIG_PATH", tmp):
             cfg = AppConfig.load()
             assert cfg.summarizer.local_model_key == "llama-3.1-4b-instruct"
 
@@ -95,7 +95,7 @@ class TestConfigMigration:
             json.dump(data, f)
             tmp = Path(f.name)
 
-        with mock.patch("livescribe.config.CONFIG_PATH", tmp):
+        with mock.patch("livescriber.config.CONFIG_PATH", tmp):
             cfg = AppConfig.load()
             assert cfg.ui.theme == "dark"
 
@@ -110,8 +110,8 @@ class TestConfigRoundTrip:
             cfg_path = Path(tmpdir) / "config.json"
             app_dir = Path(tmpdir)
 
-            with mock.patch("livescribe.config.CONFIG_PATH", cfg_path), \
-                 mock.patch("livescribe.config.APP_DIR", app_dir):
+            with mock.patch("livescriber.config.CONFIG_PATH", cfg_path), \
+                 mock.patch("livescriber.config.APP_DIR", app_dir):
                 cfg = AppConfig()
                 cfg.summarizer.backend = "openai"
                 cfg.transcription.model_size = "small"

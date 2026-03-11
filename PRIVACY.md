@@ -1,14 +1,14 @@
 # Privacy Policy
 
-**LiveScribe**
+**LiveScriber**
 *Effective Date: March 9, 2026*
 *Last Updated: March 9, 2026*
 
-LiveScribe ("the App") is an open-source desktop and mobile application for audio recording, transcription, and AI-powered summarization. This Privacy Policy explains how the App handles your data.
+LiveScriber ("the App") is an open-source desktop and mobile application for audio recording, transcription, and AI-powered summarization. This Privacy Policy explains how the App handles your data.
 
 **Developer:** appatalks
-**Contact:** https://github.com/appatalks/LiveScribe/issues
-**Source Code:** https://github.com/appatalks/LiveScribe
+**Contact:** https://github.com/appatalks/LiveScriber/issues
+**Source Code:** https://github.com/appatalks/LiveScriber
 
 ---
 
@@ -67,10 +67,10 @@ All data generated and stored by the App resides **locally on your device**:
 
 | Data | Location |
 |---|---|
-| Configuration and preferences | `~/.livescribe/config.json` |
-| Saved audio recordings | `~/.livescribe/recordings/` |
-| Saved summary notes | `~/.livescribe/notes/` |
-| Downloaded AI models | `~/.livescribe/models/` |
+| Configuration and preferences | `~/.livescriber/config.json` |
+| Saved audio recordings | `~/.livescriber/recordings/` |
+| Saved summary notes | `~/.livescriber/notes/` |
+| Downloaded AI models | `~/.livescriber/models/` |
 
 Session data (in-memory audio, transcripts, and summaries) is **automatically discarded** when you close the App unless you explicitly save it.
 
@@ -102,12 +102,12 @@ In each case, transcript text is sent to the service you selected. Refer to that
 
 You have full control over your data:
 
-- **Delete all App data:** Remove the `~/.livescribe/` directory from your device.
-- **Delete saved recordings:** Remove files from `~/.livescribe/recordings/`.
-- **Delete saved notes:** Remove files from `~/.livescribe/notes/`.
-- **Delete downloaded models:** Remove `~/.livescribe/models/`.
-- **Reset configuration:** Delete `~/.livescribe/config.json` — the App will regenerate default settings on next launch.
-- **Uninstall the App** to remove the application itself. Note that the data directory (`~/.livescribe/`) is not automatically removed on uninstall; delete it manually for complete removal.
+- **Delete all App data:** Remove the `~/.livescriber/` directory from your device.
+- **Delete saved recordings:** Remove files from `~/.livescriber/recordings/`.
+- **Delete saved notes:** Remove files from `~/.livescriber/notes/`.
+- **Delete downloaded models:** Remove `~/.livescriber/models/`.
+- **Reset configuration:** Delete `~/.livescriber/config.json` — the App will regenerate default settings on next launch.
+- **Uninstall the App** to remove the application itself. Note that the data directory (`~/.livescriber/`) is not automatically removed on uninstall; delete it manually for complete removal.
 
 ---
 
@@ -147,15 +147,15 @@ The App does not knowingly collect personal information from children under the 
 
 - API keys are stored locally on your device and are only transmitted to the respective API service for authentication.
 - All transcription processing occurs on-device.
-- The App is open source — the complete source code is available for review at [github.com/appatalks/LiveScribe](https://github.com/appatalks/LiveScribe).
+- The App is open source — the complete source code is available for review at [github.com/appatalks/LiveScriber](https://github.com/appatalks/LiveScriber).
 
-For security concerns, please see our [Security Policy](SECURITY.md) or report issues via [GitHub Security Advisories](https://github.com/appatalks/LiveScribe/security/advisories).
+For security concerns, please see our [Security Policy](SECURITY.md) or report issues via [GitHub Security Advisories](https://github.com/appatalks/LiveScriber/security/advisories).
 
 ---
 
 ## 12. Changes to This Policy
 
-We may update this Privacy Policy from time to time. Changes will be posted to the [LiveScribe GitHub repository](https://github.com/appatalks/LiveScribe) and the effective date will be updated accordingly. Continued use of the App after changes constitutes acceptance of the updated policy.
+We may update this Privacy Policy from time to time. Changes will be posted to the [LiveScriber GitHub repository](https://github.com/appatalks/LiveScriber) and the effective date will be updated accordingly. Continued use of the App after changes constitutes acceptance of the updated policy.
 
 ---
 
@@ -163,9 +163,9 @@ We may update this Privacy Policy from time to time. Changes will be posted to t
 
 If you have questions or concerns about this Privacy Policy, please reach out:
 
-- **GitHub Issues:** https://github.com/appatalks/LiveScribe/issues
-- **Repository:** https://github.com/appatalks/LiveScribe
+- **GitHub Issues:** https://github.com/appatalks/LiveScriber/issues
+- **Repository:** https://github.com/appatalks/LiveScriber
 
 ---
 
-*This privacy policy applies to the LiveScribe application distributed via the Google Play Store and all other platforms.*
+*This privacy policy applies to the LiveScriber application distributed via the Google Play Store and all other platforms.*

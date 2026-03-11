@@ -1,8 +1,8 @@
-# LiveScribe Workspace Instructions
+# LiveScriber Workspace Instructions
 
 ## Project Overview
 
-LiveScribe is a Python desktop app built with PyQt6.
+LiveScriber is a Python desktop app built with PyQt6.
 It records audio, transcribes locally with faster-whisper, and summarizes with one of four backends:
 
 - `copilot`
@@ -21,16 +21,16 @@ Keep changes small, focused, and consistent with the current UI and config model
 
 ## Transcription Rules
 
-- `livescribe/transcriber.py` contains important Windows-specific behavior.
+- `livescriber/transcriber.py` contains important Windows-specific behavior.
 - On Windows, transcription must remain isolated from the Qt GUI process.
-- Source runs may use `python -m livescribe.transcriber` as the helper path.
-- Packaged Windows builds must prefer the sibling helper executable `LiveScribeTranscriber.exe`.
-- Do not change packaged helper invocation back to `LiveScribe.exe -m livescribe.transcriber ...`; that breaks in frozen builds.
+- Source runs may use `python -m livescriber.transcriber` as the helper path.
+- Packaged Windows builds must prefer the sibling helper executable `LiveScriberTranscriber.exe`.
+- Do not change packaged helper invocation back to `LiveScriber.exe -m livescriber.transcriber ...`; that breaks in frozen builds.
 - CPU fallback for missing CUDA runtime DLLs is intentional and should remain in place.
 
 ## Recording Rules
 
-- `livescribe/recorder.py` includes Windows-specific system audio detection.
+- `livescriber/recorder.py` includes Windows-specific system audio detection.
 - On Windows, system audio may come from `Stereo Mix`, `Wave Out Mix`, `What U Hear`, or another loopback-style input.
 - Do not assume WASAPI loopback devices always exist.
 
@@ -49,7 +49,7 @@ Keep changes small, focused, and consistent with the current UI and config model
 
 ## Settings Dialog Rules
 
-- `livescribe/app.py` `SettingsDialog` is backend-sensitive.
+- `livescriber/app.py` `SettingsDialog` is backend-sensitive.
 - Hide irrelevant groups instead of only disabling them.
 - Current intent:
   - Copilot group visible only for `copilot`
@@ -62,10 +62,10 @@ Keep changes small, focused, and consistent with the current UI and config model
 
 - Windows packaging is handled by `scripts/build_windows_installer.ps1`.
 - The build should produce:
-  - `dist/LiveScribe/LiveScribe.exe`
-  - `dist/LiveScribe/LiveScribeTranscriber.exe`
-  - `dist/installer/LiveScribe-Setup-<version>.exe`
-- `installer/LiveScribe.iss` is the Inno Setup definition.
+  - `dist/LiveScriber/LiveScriber.exe`
+  - `dist/LiveScriber/LiveScriberTranscriber.exe`
+  - `dist/installer/LiveScriber-Setup-<version>.exe`
+- `installer/LiveScriber.iss` is the Inno Setup definition.
 - Keep the dedicated transcription helper executable in the packaged output.
 - Be careful with PyInstaller collection scope. Broad `--collect-all` usage makes the build much larger and noisier.
 
@@ -88,7 +88,7 @@ When making risky changes, prefer quick targeted validation:
 
 ## Known Good Expectations
 
-- Packaged Windows transcription should route through `LiveScribeTranscriber.exe`.
+- Packaged Windows transcription should route through `LiveScriberTranscriber.exe`.
 - Local downloads should succeed without progress-bar errors in packaged builds.
 - The Settings dialog should resize cleanly when backend-specific groups are shown or hidden.
 - The current local config may be migrated on load to keep old keys working.

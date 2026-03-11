@@ -1,4 +1,4 @@
-#define AppName "LiveScribe"
+#define AppName "LiveScriber"
 #ifndef AppVersion
   #define AppVersion "0.1.0"
 #endif
@@ -7,20 +7,20 @@
 AppId={{A495DCE5-0A02-4D72-9D80-A4A5BC8D8BC5}}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=LiveScribe
+AppPublisher=LiveScriber
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist\installer
-OutputBaseFilename=LiveScribe-Setup-{#AppVersion}
+OutputBaseFilename=LiveScriber-Setup-{#AppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-SetupIconFile=..\assets\livescribe.ico
-UninstallDisplayIcon={app}\LiveScribe.exe
+SetupIconFile=..\assets\livescriber.ico
+UninstallDisplayIcon={app}\LiveScriber.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -29,15 +29,15 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Files]
-Source: "..\assets\livescribe.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\LiveScribe\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\assets\livescriber.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\LiveScriber\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{app}\LiveScribe.exe"; IconFilename: "{app}\livescribe.ico"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\LiveScribe.exe"; IconFilename: "{app}\livescribe.ico"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppName}"; Filename: "{app}\LiveScriber.exe"; IconFilename: "{app}\livescriber.ico"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\LiveScriber.exe"; IconFilename: "{app}\livescriber.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\LiveScribe.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\LiveScriber.exe"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -49,10 +49,10 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    DataDir := ExpandConstant('{%USERPROFILE}\.livescribe');
+    DataDir := ExpandConstant('{%USERPROFILE}\.livescriber');
     if DirExists(DataDir) then
     begin
-      if MsgBox('Remove all LiveScribe user data?' + #13#10 + #13#10 +
+      if MsgBox('Remove all LiveScriber user data?' + #13#10 + #13#10 +
                 'This deletes your settings, license key, downloaded models, ' +
                 'and recordings stored in:' + #13#10 + DataDir + #13#10 + #13#10 +
                 'Choose No to keep your data for a future installation.',

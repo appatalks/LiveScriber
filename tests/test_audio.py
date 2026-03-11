@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from livescribe.config import AudioConfig
-from livescribe.recorder import Recorder
+from livescriber.config import AudioConfig
+from livescriber.recorder import Recorder
 
 
 class TestSyntheticAudio:
@@ -47,16 +47,16 @@ class TestLiveChunkFiltering:
     """Verify the transcriber's live chunk pre-filtering without loading Whisper."""
 
     def test_short_chunk_rejected(self):
-        from livescribe.config import TranscriptionConfig
-        from livescribe.transcriber import Transcriber
+        from livescriber.config import TranscriptionConfig
+        from livescriber.transcriber import Transcriber
 
         t = Transcriber(TranscriptionConfig())
         result = t.transcribe_live_chunk(np.zeros(8000, dtype=np.float32), 16000)
         assert result == ""
 
     def test_silence_rejected(self):
-        from livescribe.config import TranscriptionConfig
-        from livescribe.transcriber import Transcriber
+        from livescriber.config import TranscriptionConfig
+        from livescriber.transcriber import Transcriber
 
         t = Transcriber(TranscriptionConfig())
         result = t.transcribe_live_chunk(np.zeros(48000, dtype=np.float32), 16000)

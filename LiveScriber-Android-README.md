@@ -1,8 +1,8 @@
-<h1 align="center">LiveScribe Android</h1>
+<h1 align="center">LiveScriber Android</h1>
 
 <p align="center">
   <strong>Record &nbsp;→&nbsp; Transcribe &nbsp;→&nbsp; Summarize — entirely on your phone.</strong><br/>
-  <sub>The Android companion to <a href="https://github.com/appatalks/LiveScribe">LiveScribe</a>.</sub>
+  <sub>The Android companion to <a href="https://github.com/appatalks/LiveScriber">LiveScriber</a>.</sub>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 </p>
 
 <!-- <p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.livescribe.android">
+  <a href="https://play.google.com/store/apps/details?id=com.livescriber.android">
     <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="200"/>
   </a>
 </p> -->
@@ -22,7 +22,7 @@
 
 ## About
 
-LiveScribe Android brings the full **LiveScribe** experience to your phone — record audio, transcribe it locally on-device with [whisper.cpp](https://github.com/ggerganov/whisper.cpp), and summarize the transcript using your choice of AI backend, including fully offline on-device summarization with [llama.cpp](https://github.com/ggerganov/llama.cpp).
+LiveScriber Android brings the full **LiveScriber** experience to your phone — record audio, transcribe it locally on-device with [whisper.cpp](https://github.com/ggerganov/whisper.cpp), and summarize the transcript using your choice of AI backend, including fully offline on-device summarization with [llama.cpp](https://github.com/ggerganov/llama.cpp).
 
 No cloud account required for basic usage. Record, transcribe, and summarize without ever leaving your device.
 
@@ -47,7 +47,7 @@ No cloud account required for basic usage. Record, transcribe, and summarize wit
 
 ## Summarization backends
 
-LiveScribe Android supports the same backends as the desktop app, plus on-device inference:
+LiveScriber Android supports the same backends as the desktop app, plus on-device inference:
 
 | Backend | Network required | Description |
 |---------|:---:|-------------|
@@ -92,7 +92,7 @@ For fully offline summarization, download a model directly within the app:
 
 ## Desktop parity
 
-LiveScribe Android maintains feature parity with the desktop app where it makes sense:
+LiveScriber Android maintains feature parity with the desktop app where it makes sense:
 
 - Same system prompt and summarization output format
 - Same Catppuccin color theme
@@ -106,7 +106,7 @@ LiveScribe Android maintains feature parity with the desktop app where it makes 
 
 <!-- Uncomment when Play Store listing is live:
 <p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.livescribe.android">
+  <a href="https://play.google.com/store/apps/details?id=com.livescriber.android">
     <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="250"/>
   </a>
 </p>
@@ -118,24 +118,25 @@ LiveScribe Android maintains feature parity with the desktop app where it makes 
 
 ## Feedback & bug reports
 
-The Android source is currently in a **private repository**. Please submit all feedback through the main LiveScribe project:
+The Android source is currently in a **private repository**. Please submit all feedback through the main LiveScriber project:
 
-- **🐛 Bug reports:** [Open an issue](https://github.com/appatalks/LiveScribe/issues/new?labels=android,bug&template=bug_report.md&title=%5BAndroid%5D+) with the `android` label
-- **💡 Feature requests:** [Open an issue](https://github.com/appatalks/LiveScribe/issues/new?labels=android,enhancement&title=%5BAndroid%5D+) with the `android` label
+- **🐛 Bug reports:** [Open an issue](https://github.com/appatalks/LiveScriber/issues/new?labels=android,bug&template=bug_report.md&title=%5BAndroid%5D+) with the `android` label
+- **💡 Feature requests:** [Open an issue](https://github.com/appatalks/LiveScriber/issues/new?labels=android,enhancement&title=%5BAndroid%5D+) with the `android` label
+- **💬 General discussion:** Use [Discussions](https://github.com/appatalks/LiveScriber/discussions) in the main repo
 
 When reporting bugs, please include:
 - Device model and Android version
 - App version (shown in Settings)
 - Steps to reproduce
-- Logcat output if available (`adb logcat | grep -i livescribe`)
+- Logcat output if available (`adb logcat | grep -i livescriber`)
 
 ---
 
-## LiveScribe family
+## LiveScriber family
 
 | Platform | Status | Link |
 |----------|--------|------|
-| 🐧🍎🪟 **Desktop** (Linux, macOS, Windows) | ✅ Released | [LiveScribe](https://github.com/appatalks/LiveScribe) |
+| 🐧🍎🪟 **Desktop** (Linux, macOS, Windows) | ✅ Released | [LiveScriber](https://github.com/appatalks/LiveScriber) |
 | 📱 **Android** | 🔧 In development | Play Store (coming soon) |
 
 ---

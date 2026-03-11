@@ -42,14 +42,14 @@ jobs:
 
       - name: Syntax check (all modules)
         run: |
-          python -m py_compile livescribe/__init__.py
-          python -m py_compile livescribe/config.py
-          python -m py_compile livescribe/recorder.py
-          python -m py_compile livescribe/transcriber.py
-          python -m py_compile livescribe/summarizer.py
-          python -m py_compile livescribe/styles.py
-          python -m py_compile livescribe/main.py
-          python -m py_compile livescribe/app.py
+          python -m py_compile livescriber/__init__.py
+          python -m py_compile livescriber/config.py
+          python -m py_compile livescriber/recorder.py
+          python -m py_compile livescriber/transcriber.py
+          python -m py_compile livescriber/summarizer.py
+          python -m py_compile livescriber/styles.py
+          python -m py_compile livescriber/main.py
+          python -m py_compile livescriber/app.py
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

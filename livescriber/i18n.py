@@ -1,4 +1,4 @@
-"""UI string translations for LiveScribe localization."""
+"""UI string translations for LiveScriber localization."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "recorded": "Recorded",
         "session": "session",
         # Settings dialog
-        "settings_title": "LiveScribe Settings",
+        "settings_title": "LiveScriber Settings",
         "grp_transcription": "Transcription",
         "whisper_model": "Whisper model:",
         "language": "Language:",
@@ -101,7 +101,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "live_ready": "실시간 변환 완료",
         "recorded": "녹음됨",
         "session": "세션",
-        "settings_title": "LiveScribe 설정",
+        "settings_title": "LiveScriber 설정",
         "grp_transcription": "텍스트 변환",
         "whisper_model": "Whisper 모델:",
         "language": "언어:",
@@ -158,7 +158,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "live_ready": "リアルタイム変換完了",
         "recorded": "録音済み",
         "session": "セッション",
-        "settings_title": "LiveScribe 設定",
+        "settings_title": "LiveScriber 設定",
         "grp_transcription": "文字起こし",
         "whisper_model": "Whisperモデル:",
         "language": "言語:",
@@ -215,7 +215,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "live_ready": "живий транскрипт готовий",
         "recorded": "Записано",
         "session": "сеанс",
-        "settings_title": "LiveScribe Налаштування",
+        "settings_title": "LiveScriber Налаштування",
         "grp_transcription": "Транскрипція",
         "whisper_model": "Модель Whisper:",
         "language": "Мова:",
@@ -258,7 +258,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcribe_first": "Primero transcriba antes de resumir",
         "recorded": "Grabado",
         "session": "sesión",
-        "settings_title": "LiveScribe Configuración",
+        "settings_title": "LiveScriber Configuración",
         "grp_transcription": "Transcripción",
         "whisper_model": "Modelo Whisper:",
         "language": "Idioma:",
@@ -301,7 +301,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcribe_first": "Transcrivez d'abord avant de résumer",
         "recorded": "Enregistré",
         "session": "session",
-        "settings_title": "LiveScribe Paramètres",
+        "settings_title": "LiveScriber Paramètres",
         "grp_transcription": "Transcription",
         "whisper_model": "Modèle Whisper :",
         "language": "Langue :",
@@ -344,7 +344,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcribe_first": "Erst transkribieren, dann zusammenfassen",
         "recorded": "Aufgenommen",
         "session": "Sitzung",
-        "settings_title": "LiveScribe Einstellungen",
+        "settings_title": "LiveScriber Einstellungen",
         "grp_transcription": "Transkription",
         "whisper_model": "Whisper-Modell:",
         "language": "Sprache:",
@@ -387,7 +387,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcribe_first": "Transcreva primeiro antes de resumir",
         "recorded": "Gravado",
         "session": "sessão",
-        "settings_title": "LiveScribe Configurações",
+        "settings_title": "LiveScriber Configurações",
         "grp_transcription": "Transcrição",
         "whisper_model": "Modelo Whisper:",
         "language": "Idioma:",
@@ -430,7 +430,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcribe_first": "انسخ أولاً قبل التلخيص",
         "recorded": "تم التسجيل",
         "session": "جلسة",
-        "settings_title": "LiveScribe الإعدادات",
+        "settings_title": "LiveScriber الإعدادات",
         "grp_transcription": "النسخ الصوتي",
         "whisper_model": "نموذج Whisper:",
         "language": "اللغة:",
@@ -588,7 +588,7 @@ def get_system_prompt(lang: str = "en") -> str:
 
 COPILOT_PROMPTS: dict[str, str] = {
     "en": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes.\n\n"
@@ -600,7 +600,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "Transcript:\n\n"
     ),
     "ko": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in Korean (한국어).\n\n"
@@ -612,7 +612,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "텍스트 변환본:\n\n"
     ),
     "ja": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in Japanese (日本語).\n\n"
@@ -624,7 +624,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "文字起こし：\n\n"
     ),
     "uk": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in Ukrainian (Українська).\n\n"
@@ -636,7 +636,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "Транскрипція:\n\n"
     ),
     "es": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in Spanish (Español).\n\n"
@@ -648,7 +648,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "Transcripción:\n\n"
     ),
     "fr": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in French (Français).\n\n"
@@ -660,7 +660,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "Transcription :\n\n"
     ),
     "de": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in German (Deutsch).\n\n"
@@ -672,7 +672,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "Transkription:\n\n"
     ),
     "pt": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in Portuguese (Português).\n\n"
@@ -684,7 +684,7 @@ COPILOT_PROMPTS: dict[str, str] = {
         "Transcrição:\n\n"
     ),
     "ar": (
-        "You are acting as a backend text processing service for the LiveScribe app. "
+        "You are acting as a backend text processing service for the LiveScriber app. "
         "Your only job is to process the transcript below into structured notes. "
         "Do NOT ask questions, offer help with code, or add any commentary. "
         "Output ONLY the formatted notes. Write entirely in Arabic (العربية).\n\n"

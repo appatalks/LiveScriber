@@ -8,7 +8,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-APP_DIR = Path.home() / ".livescribe"
+APP_DIR = Path.home() / ".livescriber"
 RECORDINGS_DIR = APP_DIR / "recordings"
 MODELS_DIR = APP_DIR / "models"
 CONFIG_PATH = APP_DIR / "config.json"

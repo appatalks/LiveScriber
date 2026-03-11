@@ -79,7 +79,7 @@ function Get-IsccPath {
 function Get-AppVersion {
     param([string]$PythonCommand)
 
-    $output = Invoke-Python $PythonCommand @("-c", "import livescribe; print(livescribe.__version__)")
+    $output = Invoke-Python $PythonCommand @("-c", "import livescriber; print(livescriber.__version__)")
     return ($output | Select-Object -Last 1).Trim()
 }
 
@@ -88,14 +88,14 @@ Set-Location $projectRoot
 
 $python = Resolve-Python $PythonExe
 $version = Get-AppVersion $python
-$iconPath = Join-Path $projectRoot "assets\livescribe.ico"
+$iconPath = Join-Path $projectRoot "assets\livescriber.ico"
 
 if (-not (Test-Path $iconPath)) {
-    Fail "App icon was not found at assets\livescribe.ico"
+    Fail "App icon was not found at assets\livescriber.ico"
 }
 
 Write-Info "Using Python: $python"
-Write-Info "Building LiveScribe $version"
+Write-Info "Building LiveScriber $version"
 
 Invoke-Python $python @("-m", "pip", "install", "-e", ".[dev]")
 
@@ -114,9 +114,9 @@ Invoke-Python $python @(
     "--noconfirm",
     "--clean",
     "--windowed",
-    "--name", "LiveScribe",
+    "--name", "LiveScriber",
     "--icon", $iconPath,
-    "--add-data", ".\assets\livescribe.ico;assets",
+    "--add-data", ".\assets\livescriber.ico;assets",
     "--hidden-import", "sounddevice",
     "--hidden-import", "llama_cpp.llama_chat_format",
     "--hidden-import", "llama_cpp.llama_tokenizer",
@@ -174,10 +174,10 @@ Invoke-Python $python @(
     "--clean",
     "--onefile",
     "--console",
-    "--name", "LiveScribeTranscriber",
+    "--name", "LiveScriberTranscriber",
     "--icon", $iconPath,
-    "--distpath", ".\dist\LiveScribe",
-    "--workpath", ".\build\LiveScribeTranscriber",
+    "--distpath", ".\dist\LiveScriber",
+    "--workpath", ".\build\LiveScriberTranscriber",
     "--specpath", ".\build",
     "--hidden-import", "sounddevice",
     "--collect-submodules", "faster_whisper",
@@ -194,14 +194,14 @@ Invoke-Python $python @(
     ".\scripts\windows_transcriber_helper.py"
 )
 
-$bundleExe = Join-Path $projectRoot "dist\LiveScribe\LiveScribe.exe"
+$bundleExe = Join-Path $projectRoot "dist\LiveScriber\LiveScriber.exe"
 if (-not (Test-Path $bundleExe)) {
-    Fail "PyInstaller did not produce dist\LiveScribe\LiveScribe.exe"
+    Fail "PyInstaller did not produce dist\LiveScriber\LiveScriber.exe"
 }
 
-$helperExe = Join-Path $projectRoot "dist\LiveScribe\LiveScribeTranscriber.exe"
+$helperExe = Join-Path $projectRoot "dist\LiveScriber\LiveScriberTranscriber.exe"
 if (-not (Test-Path $helperExe)) {
-    Fail "PyInstaller did not produce dist\LiveScribe\LiveScribeTranscriber.exe"
+    Fail "PyInstaller did not produce dist\LiveScriber\LiveScriberTranscriber.exe"
 }
 
 Write-Ok "Built app bundle: $bundleExe"
@@ -210,12 +210,12 @@ Write-Ok "Built transcription helper: $helperExe"
 $iscc = Get-IsccPath
 if (-not $iscc) {
     Write-Warn "Inno Setup was not found. Install Inno Setup 6 to build the .exe installer."
-    Write-Warn "The app bundle is ready in dist\LiveScribe"
+    Write-Warn "The app bundle is ready in dist\LiveScriber"
     exit 0
 }
 
 Write-Info "Building installer with Inno Setup"
-& $iscc "/DAppVersion=$version" ".\installer\LiveScribe.iss"
+& $iscc "/DAppVersion=$version" ".\installer\LiveScriber.iss"
 
 $installerDir = Join-Path $projectRoot "dist\installer"
 Write-Ok "Installer build complete: $installerDir"

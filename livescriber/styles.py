@@ -1,4 +1,4 @@
-"""QSS stylesheets for the LiveScribe UI."""
+"""QSS stylesheets for the LiveScriber UI."""
 
 DARK_THEME = """
 /* ── Global ──────────────────────────────────────────────────────────── */

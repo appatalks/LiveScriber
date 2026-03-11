@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# LiveScribe — Setup Script (Linux / macOS)
+# LiveScriber — Setup Script (Linux / macOS)
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -62,7 +62,7 @@ install_local_runtime() {
         return
     fi
 
-    warn "Could not install llama-cpp-python automatically. LiveScribe will still work, but the embedded local summarizer will remain unavailable until its runtime is installed."
+    warn "Could not install llama-cpp-python automatically. LiveScriber will still work, but the embedded local summarizer will remain unavailable until its runtime is installed."
 }
 
 # ── Check Python ───────────────────────────────────────────────────────────
@@ -130,32 +130,32 @@ source "$VENV_DIR/bin/activate"
 info "Upgrading pip…"
 pip install --upgrade pip -q
 
-info "Installing LiveScribe…"
+info "Installing LiveScriber…"
 pip install -e "$PROJECT_DIR" -q
 
 install_local_runtime
 
 ok "Installation complete!"
 
-# ── Create ~/.livescribe ──────────────────────────────────────────────────
-mkdir -p "$HOME/.livescribe/recordings"
+# ── Create ~/.livescriber ──────────────────────────────────────────────────
+mkdir -p "$HOME/.livescriber/recordings"
 
 # ── Print summary ─────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║         LiveScribe installed successfully!       ║${NC}"
+echo -e "${GREEN}║         LiveScriber installed successfully!       ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 echo "  Activate the environment:"
 echo -e "    ${CYAN}source $VENV_DIR/bin/activate${NC}"
 echo ""
-echo "  Run LiveScribe:"
-echo -e "    ${CYAN}livescribe${NC}"
+echo "  Run LiveScriber:"
+echo -e "    ${CYAN}livescriber${NC}"
 echo ""
 echo "  Options:"
-echo -e "    ${CYAN}livescribe --model small${NC}       # Use a larger Whisper model"
-echo -e "    ${CYAN}livescribe --backend openai${NC}    # Use OpenAI for summaries"
-echo -e "    ${CYAN}livescribe --theme light${NC}       # Light theme"
+echo -e "    ${CYAN}livescriber --model small${NC}       # Use a larger Whisper model"
+echo -e "    ${CYAN}livescriber --backend openai${NC}    # Use OpenAI for summaries"
+echo -e "    ${CYAN}livescriber --theme light${NC}       # Light theme"
 echo ""
 echo "  For local summarization, install Ollama:"
 echo -e "    ${CYAN}curl -fsSL https://ollama.com/install.sh | sh${NC}"

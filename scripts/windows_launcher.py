@@ -1,9 +1,9 @@
-"""PyInstaller launcher for the LiveScribe desktop app."""
+"""PyInstaller launcher for the LiveScriber desktop app."""
 
 import sys
 
-from livescribe.main import main
-from livescribe.transcriber import _run_transcriber_cli
+from livescriber.main import main
+from livescriber.transcriber import _run_transcriber_cli
 
 
 if __name__ == "__main__":

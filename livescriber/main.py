@@ -1,4 +1,4 @@
-"""LiveScribe entry point — launch the floating window."""
+"""LiveScriber entry point — launch the floating window."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="livescribe",
+        prog="livescriber",
         description="Floating desktop app for meeting transcription & summarization",
     )
     parser.add_argument(
@@ -37,7 +37,7 @@ def main():
     args = parser.parse_args()
 
     # Load config (persisted or defaults)
-    from livescribe.config import AppConfig
+    from livescriber.config import AppConfig
 
     config = AppConfig.load()
 
@@ -52,7 +52,7 @@ def main():
         config.ui.always_on_top = False
 
     # Launch GUI
-    from livescribe.app import run_app
+    from livescriber.app import run_app
 
     run_app(config)
 

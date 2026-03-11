@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "livescribe"
+name = "livescriber"
 version = "0.1.1"
 description = "A floating desktop app for real-time meeting transcription and AI summarization"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "LiveScribe"},
+    {name = "LiveScriber"},
 ]
 dependencies = [
     "PyQt6>=6.5",
@@ -33,13 +33,13 @@ dev = [
 ]
 
 [project.scripts]
-livescribe = "livescribe.main:main"
+livescriber = "livescriber.main:main"
 
 [project.gui-scripts]
-livescribe-gui = "livescribe.main:main"
+livescriber-gui = "livescriber.main:main"
 
 [tool.setuptools.packages.find]
-include = ["livescribe*"]
+include = ["livescriber*"]
 
 [tool.ruff]
 line-length = 100

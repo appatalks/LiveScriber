@@ -12,7 +12,7 @@ We release patches for security vulnerabilities. Currently supported:
 
 If you discover a security vulnerability, please **do not** open a public issue.
 
-Instead, please report it by emailing the maintainers or opening a private security advisory through GitHub's [Security Advisories](https://github.com/appatalks/LiveScribe/security/advisories).
+Instead, please report it by emailing the maintainers or opening a private security advisory through GitHub's [Security Advisories](https://github.com/appatalks/LiveScriber/security/advisories).
 
 Include:
 - Description of the vulnerability
@@ -26,14 +26,14 @@ We will respond within 48 hours and work with you to understand and address the 
 
 ### API Keys
 - **Never commit API keys** to the repository
-- LiveScribe stores OpenAI API keys in `~/.livescribe/config.json` (user's home directory)
+- LiveScriber stores OpenAI API keys in `~/.livescriber/config.json` (user's home directory)
 - API keys can be set via `OPENAI_API_KEY` environment variable
 - The config file is excluded from version control
 
 ### Local Data
 - Audio recordings are kept in memory by default
 - Transcripts are only saved when explicitly exported by the user
-- Configuration is stored locally in `~/.livescribe/`
+- Configuration is stored locally in `~/.livescriber/`
 
 ### Dependencies
 - We use Dependabot to monitor and update dependencies
@@ -41,9 +41,9 @@ We will respond within 48 hours and work with you to understand and address the 
 - Review the dependency list in `requirements.txt` and `pyproject.toml`
 
 ### Privacy
-- **Local-first**: By default, LiveScribe uses local Whisper models for transcription
+- **Local-first**: By default, LiveScriber uses local Whisper models for transcription
 - **Optional cloud**: AI summarization can use Copilot CLI, an ollama-like local server, or OpenAI (cloud)
-- **No telemetry**: LiveScribe does not collect or send any usage data
+- **No telemetry**: LiveScriber does not collect or send any usage data
 
 ## Best Practices for Users
 

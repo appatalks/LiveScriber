@@ -13,7 +13,7 @@ from typing import Callable
 
 import requests
 
-from livescribe.config import MODELS_DIR, SummarizerConfig
+from livescriber.config import MODELS_DIR, SummarizerConfig
 
 
 LOCAL_MODEL_CATALOG = {
@@ -75,7 +75,7 @@ class Summarizer:
         if not transcript.strip():
             return ""
 
-        from livescribe.i18n import get_system_prompt
+        from livescriber.i18n import get_system_prompt
 
         # Use a fully translated system prompt for the detected language
         original_prompt = self.cfg.system_prompt
@@ -159,7 +159,7 @@ class Summarizer:
 
     def _summarize_copilot(self, transcript: str) -> str:
         """Summarize via Copilot CLI (copilot --prompt)."""
-        from livescribe.i18n import get_copilot_prompt
+        from livescriber.i18n import get_copilot_prompt
 
         # Use Copilot-specific prompt that frames the task as documentation
         # generation, which Copilot accepts (unlike generic note-taking prompts)

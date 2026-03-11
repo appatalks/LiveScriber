@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate LiveScribe Pro license keys.
+"""Generate LiveScriber Pro license keys.
 
 Usage:
     python scripts/generate_license.py            # generate one key
@@ -31,7 +31,7 @@ def generate_key() -> str:
     groups = [_random_group() for _ in range(3)]
     payload = "-".join(groups)
     checksum = hashlib.sha256(
-        ("LiveScribePro:" + payload).encode()
+        ("LiveScriberPro:" + payload).encode()
     ).hexdigest()[:4].upper()
     return f"{payload}-{checksum}"
 
@@ -42,7 +42,7 @@ def validate_key(key: str) -> bool:
         return False
     payload = "-".join(parts[:3])
     expected = hashlib.sha256(
-        ("LiveScribePro:" + payload).encode()
+        ("LiveScriberPro:" + payload).encode()
     ).hexdigest()[:4].upper()
     return parts[3] == expected
 

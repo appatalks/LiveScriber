@@ -1,4 +1,4 @@
-# LiveScribe — Technical Documentation
+# LiveScriber — Technical Documentation
 
 This document covers installation from source, detailed configuration, backend options, project structure, and system requirements. For a quick overview, see the main [README](README.md).
 
@@ -9,8 +9,8 @@ This document covers installation from source, detailed configuration, backend o
 ### Windows
 
 ```powershell
-git clone https://github.com/appatalks/LiveScribe
-cd LiveScribe
+git clone https://github.com/appatalks/LiveScriber
+cd LiveScriber
 .\scripts\install.ps1
 ```
 
@@ -18,13 +18,13 @@ Then run:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-livescribe
+livescriber
 ```
 
 ### macOS
 
 ```bash
-git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
+git clone https://github.com/appatalks/LiveScriber && cd LiveScriber
 ./scripts/install.sh
 ```
 
@@ -32,7 +32,7 @@ Then run:
 
 ```bash
 source .venv/bin/activate
-livescribe
+livescriber
 ```
 
 > **Tip:** To capture both sides of a call on macOS, install [BlackHole](https://existential.audio/blackhole/) (`brew install blackhole-2ch`) and set up a Multi-Output Device in Audio MIDI Setup.
@@ -40,7 +40,7 @@ livescribe
 ### Linux
 
 ```bash
-git clone https://github.com/appatalks/LiveScribe && cd LiveScribe
+git clone https://github.com/appatalks/LiveScriber && cd LiveScriber
 ./scripts/install.sh
 ```
 
@@ -48,7 +48,7 @@ Then run:
 
 ```bash
 source .venv/bin/activate
-livescribe
+livescriber
 ```
 
 System audio capture works automatically on Linux via PulseAudio/PipeWire.
@@ -58,12 +58,12 @@ System audio capture works automatically on Linux via PulseAudio/PipeWire.
 ## CLI Options
 
 ```
-livescribe                          # default (local Whisper + local summarizer)
-livescribe --backend copilot        # use Copilot CLI for summaries
-livescribe --backend ollama-like    # use a local LLM server for notes
-livescribe --backend openai         # use OpenAI directly (needs API key)
-livescribe --theme light            # light theme
-livescribe --no-on-top              # disable always-on-top
+livescriber                          # default (local Whisper + local summarizer)
+livescriber --backend copilot        # use Copilot CLI for summaries
+livescriber --backend ollama-like    # use a local LLM server for notes
+livescriber --backend openai         # use OpenAI directly (needs API key)
+livescriber --theme light            # light theme
+livescriber --no-on-top              # disable always-on-top
 ```
 
 ---
@@ -72,7 +72,7 @@ livescribe --no-on-top              # disable always-on-top
 
 ### Local (embedded — default, no server required)
 
-Runs directly inside LiveScribe with `llama.cpp` and downloadable GGUF models. No internet connection needed after the model is downloaded.
+Runs directly inside LiveScriber with `llama.cpp` and downloadable GGUF models. No internet connection needed after the model is downloaded.
 
 Included presets:
 - `Gemma 2 2B Instruct`
@@ -101,14 +101,14 @@ Works with any OpenAI-compatible local server. Configure the URL and model in **
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-livescribe --backend openai
+livescriber --backend openai
 ```
 
 ---
 
 ## Configuration
 
-Settings are accessible via the **⚙** button in the title bar, or edit `~/.livescribe/config.json` directly.
+Settings are accessible via the **⚙** button in the title bar, or edit `~/.livescriber/config.json` directly.
 
 ```json
 {
@@ -155,7 +155,7 @@ Settings are accessible via the **⚙** button in the title bar, or edit `~/.liv
 
 ## System Audio Capture
 
-LiveScribe can capture both your mic and system audio output (e.g., the other side of a call).
+LiveScriber can capture both your mic and system audio output (e.g., the other side of a call).
 
 **Linux** — works automatically via PulseAudio/PipeWire monitor sources (`parec`).
 
@@ -165,9 +165,9 @@ LiveScribe can capture both your mic and system audio output (e.g., the other si
 brew install blackhole-2ch
 ```
 
-Then open **Audio MIDI Setup** → click **+** → **Create Multi-Output Device** → check both your speakers/headphones and "BlackHole 2ch". Set this as your system output. LiveScribe will automatically detect BlackHole and capture system audio through it.
+Then open **Audio MIDI Setup** → click **+** → **Create Multi-Output Device** → check both your speakers/headphones and "BlackHole 2ch". Set this as your system output. LiveScriber will automatically detect BlackHole and capture system audio through it.
 
-**Windows** — uses a driver-exposed system-audio input such as `Stereo Mix`, `Wave Out Mix`, or another loopback-style device when available. If your audio driver does not expose one of those inputs, LiveScribe will still record your microphone and continue without system audio.
+**Windows** — uses a driver-exposed system-audio input such as `Stereo Mix`, `Wave Out Mix`, or another loopback-style device when available. If your audio driver does not expose one of those inputs, LiveScriber will still record your microphone and continue without system audio.
 
 ---
 
@@ -181,9 +181,9 @@ If you want to build a distributable Windows installer from source:
 ```
 
 This produces:
-- `dist\LiveScribe\LiveScribe.exe` — the app bundle
-- `dist\LiveScribe\LiveScribeTranscriber.exe` — transcription helper
-- `dist\installer\LiveScribe-Setup-<version>.exe` — the installer (requires [Inno Setup 6](https://jrsoftware.org/isinfo.php))
+- `dist\LiveScriber\LiveScriber.exe` — the app bundle
+- `dist\LiveScriber\LiveScriberTranscriber.exe` — transcription helper
+- `dist\installer\LiveScriber-Setup-<version>.exe` — the installer (requires [Inno Setup 6](https://jrsoftware.org/isinfo.php))
 
 A GitHub Actions workflow also builds the installer automatically on every push.
 
@@ -207,8 +207,8 @@ A GitHub Actions workflow also builds the installer automatically on every push.
 ## Project Structure
 
 ```
-LiveScribe/
-├── livescribe/
+LiveScriber/
+├── livescriber/
 │   ├── __init__.py          # Package version
 │   ├── main.py              # CLI entry point & arg parsing
 │   ├── app.py               # PyQt6 floating window UI + settings dialog
@@ -224,7 +224,7 @@ LiveScribe/
 │   └── windows_launcher.py  # PyInstaller launcher entry point
 ├── tests/                   # Cross-platform test suite
 ├── installer/
-│   └── LiveScribe.iss       # Inno Setup installer definition
+│   └── LiveScriber.iss       # Inno Setup installer definition
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md

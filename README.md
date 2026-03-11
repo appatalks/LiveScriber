@@ -1,7 +1,7 @@
-# LiveScribe
+# LiveScriber
 
 <p align="center">
-  <img src="assets/livescribe-banner.png" alt="LiveScribe — Record · Transcribe · Summarize" width="100%">
+  <img src="assets/livescriber-banner.png" alt="LiveScriber — Record · Transcribe · Summarize" width="100%">
 </p>
 
 <p align="center">
@@ -22,14 +22,14 @@
 
 | Platform | Status | Get It |
 |----------|--------|--------|
-| 🐧🍎🪟 **Desktop** (Windows, macOS, Linux) | ✅ Released | [Download](https://github.com/appatalks/LiveScribe/releases) |
-| 📱 **Android** | 🔧 Coming soon | [Learn more](LiveScribe-Android-README.md) |
+| 🐧🍎🪟 **Desktop** (Windows, macOS, Linux) | ✅ Released | [Download](https://github.com/appatalks/LiveScriber/releases) |
+| 📱 **Android** | 🔧 Coming soon | [Learn more](LiveScriber-Android-README.md) |
 
 ---
 
 ## 🚀 Get Started (Desktop)
 
-Download the latest version from [**Releases**](https://github.com/appatalks/LiveScribe/releases) and run the installer.
+Download the latest version from [**Releases**](https://github.com/appatalks/LiveScriber/releases) and run the installer.
 
 > Building from source? See the [Installation Guide](DOCS.md#install-from-source).
 
@@ -61,7 +61,7 @@ Download the latest version from [**Releases**](https://github.com/appatalks/Liv
 | 🌐 **Multi-language** | UI and summaries in 9 languages |
 | ⚙️ **Fully configurable** | Model, backend, prompt, opacity — all adjustable |
 
-> 📱 **Android** adds on-device llama.cpp inference, background recording, and audio import with auto-transcoding. [See Android details →](LiveScribe-Android-README.md)
+> 📱 **Android** adds on-device llama.cpp inference, background recording, and audio import with auto-transcoding. [See Android details →](LiveScriber-Android-README.md)
 
 ---
 
@@ -88,7 +88,7 @@ For installation from source, advanced configuration, CLI options, and developer
 
 ## 💚 Support
 
-LiveScribe is free and open source. If it's useful to you, consider supporting development:
+LiveScriber is free and open source. If it's useful to you, consider supporting development:
 
 <p align="center">
   <a href="https://www.paypal.com/donate/?hosted_button_id=3KPNXNL6QTZW2">
@@ -105,17 +105,17 @@ LiveScribe is free and open source. If it's useful to you, consider supporting d
 
 ## 🐛 Issues & Feature Requests
 
-This repository is the **central hub** for all LiveScribe platforms. Please file bugs and feature requests here:
+This repository is the **central hub** for all LiveScriber platforms. Please file bugs and feature requests here:
 
-- 🖥️ [Desktop issue](https://github.com/appatalks/LiveScribe/issues/new?labels=desktop&title=%5BDesktop%5D+)
-- 📱 [Android issue](https://github.com/appatalks/LiveScribe/issues/new?labels=android&title=%5BAndroid%5D+)
-- 💬 [General discussion](https://github.com/appatalks/LiveScribe/discussions)
+- 🖥️ [Desktop issue](https://github.com/appatalks/LiveScriber/issues/new?labels=desktop&title=%5BDesktop%5D+)
+- 📱 [Android issue](https://github.com/appatalks/LiveScriber/issues/new?labels=android&title=%5BAndroid%5D+)
+- 💬 [General discussion](https://github.com/appatalks/LiveScriber/discussions)
 
 ---
 
 ## 🔒 Privacy
 
-LiveScribe is privacy-first. Transcription always runs on-device. No analytics, no ads, no tracking.
+LiveScriber is privacy-first. Transcription always runs on-device. No analytics, no ads, no tracking.
 
 ➡️ [**Privacy Policy**](PRIVACY.md)
 

@@ -16,7 +16,7 @@ from typing import Callable
 
 import numpy as np
 
-from livescribe.config import TranscriptionConfig
+from livescriber.config import TranscriptionConfig
 
 
 class Transcriber:
@@ -290,7 +290,7 @@ class Transcriber:
         """Return True when transcription should run in an isolated helper process."""
         return (
             platform.system() == "Windows"
-            and os.environ.get("LIVESCRIBE_TRANSCRIBE_SUBPROCESS") != "1"
+            and os.environ.get("LIVESCRIBER_TRANSCRIBE_SUBPROCESS") != "1"
         )
 
     def _transcribe_file_subprocess(self, audio_path: Path | str) -> str:
@@ -324,7 +324,7 @@ class Transcriber:
         command.extend(extra_args)
 
         env = os.environ.copy()
-        env["LIVESCRIBE_TRANSCRIBE_SUBPROCESS"] = "1"
+        env["LIVESCRIBER_TRANSCRIBE_SUBPROCESS"] = "1"
         env.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
         env["HF_HUB_DISABLE_XET"] = "1"
         env["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -359,13 +359,13 @@ class Transcriber:
     def _build_subprocess_command(self) -> list[str]:
         """Build a helper command that works for both Python source runs and frozen app bundles."""
         if getattr(sys, "frozen", False):
-            helper_exe = Path(sys.executable).with_name("LiveScribeTranscriber.exe")
+            helper_exe = Path(sys.executable).with_name("LiveScriberTranscriber.exe")
             if helper_exe.exists():
                 command = [str(helper_exe)]
             else:
                 command = [sys.executable, "--transcriber-helper"]
         else:
-            command = [sys.executable, "-m", "livescribe.transcriber"]
+            command = [sys.executable, "-m", "livescriber.transcriber"]
 
         command.extend(
             [
@@ -401,7 +401,7 @@ class Transcriber:
 
 def _run_transcriber_cli() -> int:
     """Helper CLI used for isolated transcription on Windows."""
-    parser = argparse.ArgumentParser(prog="python -m livescribe.transcriber")
+    parser = argparse.ArgumentParser(prog="python -m livescriber.transcriber")
     parser.add_argument("--output-file", required=True)
     parser.add_argument("--input-file", required=True)
     parser.add_argument("--model-size", required=True)

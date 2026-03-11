@@ -115,27 +115,27 @@ if (-not (Test-Path $venvPython)) {
 Write-Info "Upgrading pip..."
 & $venvPython -m pip install --upgrade pip
 
-Write-Info "Installing LiveScribe..."
+Write-Info "Installing LiveScriber..."
 & $venvPython -m pip install -e $projectDir
 
 if ($LASTEXITCODE -ne 0) {
-    Fail "LiveScribe installation failed."
+    Fail "LiveScriber installation failed."
 }
 
 Install-LocalRuntime -PythonExe $venvPython
 
-$appDir = Join-Path $HOME ".livescribe"
+$appDir = Join-Path $HOME ".livescriber"
 $recordingsDir = Join-Path $appDir "recordings"
 New-Item -ItemType Directory -Force -Path $recordingsDir | Out-Null
 
 Write-Host ""
-Write-Host "LiveScribe installed successfully." -ForegroundColor Green
+Write-Host "LiveScriber installed successfully." -ForegroundColor Green
 Write-Host ""
 Write-Host "Activate the environment:"
 Write-Host "  $venvDir\Scripts\Activate.ps1" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Run LiveScribe:"
-Write-Host "  livescribe" -ForegroundColor Cyan
+Write-Host "Run LiveScriber:"
+Write-Host "  livescriber" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "If PowerShell blocks script execution, run this once in your user scope:" -ForegroundColor Yellow
 Write-Host "  Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" -ForegroundColor Cyan
