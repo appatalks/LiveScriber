@@ -12,11 +12,11 @@
   <img alt="Compose" src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4"/>
 </p>
 
-<!-- <p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.livescriber.android">
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.appatalks.livescriber">
     <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="200"/>
   </a>
-</p> -->
+</p>
 
 ---
 
@@ -102,17 +102,38 @@ LiveScriber Android maintains feature parity with the desktop app where it makes
 
 ---
 
+## Play Store release notes
+
+### What's New
+
+🎙️ **LiveScriber — Record, Transcribe & Summarize on your phone.**
+
+Turn any conversation, meeting, or lecture into structured notes — entirely on your device.
+
+**Highlights:**
+
+- **On-device transcription** — powered by whisper.cpp, no internet required. Choose from tiny (~39 MB) to medium (~769 MB) models to balance speed and accuracy.
+- **AI summarization** — generate clean, structured meeting notes from your transcripts. Use on-device models (llama.cpp) for full offline privacy, or connect to Ollama-like, OpenAI, or GitHub Models backends.
+- **Audio import** — import existing WAV, MP3, or M4A files and transcribe them instantly (auto-converts to the required format).
+- **Session history** — all recordings, transcripts, and summaries are saved locally and browsable.
+- **Markdown export** — export summaries as `.md` files to share or archive.
+- **Multi-language UI** — English, Korean, Japanese, Ukrainian, Spanish, and French.
+- **Bilingual summaries** — generate summaries in two languages at once.
+- **Catppuccin theme** — beautiful Mocha (dark) and Latte (light) color schemes.
+- **Background recording** — continue recording with the screen off via foreground service.
+- **Privacy-first** — transcription and (optionally) summarization never leave your device.
+
+---
+
 ## Download
 
-<!-- Uncomment when Play Store listing is live:
 <p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.livescriber.android">
+  <a href="https://play.google.com/store/apps/details?id=com.appatalks.livescriber">
     <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="250"/>
   </a>
 </p>
--->
 
-**Play Store release coming soon.** Development builds are available for testing — see below.
+**Now available on the Google Play Store!** Release candidates are also available on [GitHub Releases](https://github.com/appatalks/LiveScriber/releases).
 
 ---
 
@@ -137,7 +158,8 @@ When reporting bugs, please include:
 | Platform | Status | Link |
 |----------|--------|------|
 | 🐧🍎🪟 **Desktop** (Linux, macOS, Windows) | ✅ Released | [LiveScriber](https://github.com/appatalks/LiveScriber) |
-| 📱 **Android** | 🔧 In development | Play Store (coming soon) |
+| 📱 **Android** (Play Store) | ✅ Released | [Google Play](https://play.google.com/store/apps/details?id=com.appatalks.livescriber) |
+| 📱 **Android** (Release Candidate) | 🔧 Available | [Latest RC](https://github.com/appatalks/LiveScriber/releases) |
 
 ---
 
