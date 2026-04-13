@@ -24,7 +24,7 @@ dependencies = [
 
 [project.optional-dependencies]
 local = [
-    "llama-cpp-python>=0.3.0",
+    "llama-cpp-python>=0.3.20",
 ]
 dev = [
     "pyinstaller>=6.0",
